@@ -17,7 +17,7 @@ Auto-detected per OS, no configuration needed:
 | OS | Engine |
 | -- | ------ |
 | macOS | Apple `container` (Apple Silicon only, macOS 15+) |
-| Linux | Podman (rootless), or rootless Docker |
+| Linux | Podman (rootless) |
 | Windows | WSL Containers (`wslc.exe`) — native, ships with WSL |
 
 Images are stored **per engine and per machine** — you must build on each machine you use; there's no shared cache between `container`, Podman, and `wslc`.
@@ -130,30 +130,23 @@ export ANTHROPIC_API_KEY=...   # or OPENAI_API_KEY / GEMINI_API_KEY
 
 Tools run as root **inside** their containers — that root is not your host root:
 
-- rootless Podman / rootless Docker map container root to your own user
+- rootless Podman maps container root to your own user
 - Apple `container` and `wslc` run each container in a lightweight per-container VM
 
-On Linux the wrappers **refuse to run against a system (rootful) Docker daemon**, where container root would be host root. Fix with:
-
-```bash
-dockerd-rootless-setuptool.sh install
-```
-
-Verify what you're on:
+Verify Podman is running rootless:
 
 ```bash
 podman info --format '{{.Host.Security.Rootless}}'    # expect true
-docker info --format '{{.SecurityOptions}}' | grep rootless
 ```
 
-**Linux hardening** (applied automatically by the wrappers on Podman/Docker):
+**Linux hardening** (applied automatically by the wrappers on Podman):
 
 ```text
 --security-opt no-new-privileges
 --cap-drop=ALL --cap-add=CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETUID,SETGID
 ```
 
-No privilege escalation via setuid; the dropped capabilities include network admin, raw sockets, kill, chroot, and capability editing. The retained ones are what file handling and `apt-get install` inside the container need. Podman and Docker must run rootless — the scripts check and refuse otherwise (see above); with `sudo podman` or a system dockerd, container root is host root.
+No privilege escalation via setuid; the dropped capabilities include network admin, raw sockets, kill, chroot, and capability editing. The retained ones are what file handling and `apt-get install` inside the container need. Podman must run rootless — with `sudo podman`, container root is host root.
 
 **Claude skip-permissions:** the image sets `IS_SANDBOX=1`, which lets `claude --dangerously-skip-permissions` run as root (Claude Code otherwise refuses it when running as root). It's still opt-in — plain `claude` asks for permissions as usual.
 

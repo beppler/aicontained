@@ -1,21 +1,14 @@
 #!/usr/bin/env bash
 # Runs Codex CLI in an isolated container.
-# Engine: Apple `container` on macOS, Podman on Linux (rootless Docker fallback).
+# Engine: Apple `container` on macOS, Podman on Linux.
 set -euo pipefail
 
 case "$(uname -s)" in
   Darwin) ENGINE=container ;;
   Linux)  if command -v podman >/dev/null 2>&1; then
             ENGINE=podman
-          elif command -v docker >/dev/null 2>&1; then
-            if ! docker info --format '{{.SecurityOptions}}' 2>/dev/null | grep -q rootless; then
-              echo "Docker is not running in rootless mode; container root would be host root." >&2
-              echo "Use rootless Docker (dockerd-rootless-setuptool.sh install) or Podman instead." >&2
-              exit 1
-            fi
-            ENGINE=docker
           else
-            echo "No container engine found. Install podman (or docker) on Linux." >&2; exit 1
+            echo "No supported container engine found. Supported: Apple container (macOS), Podman (Linux). Docker is not supported." >&2; exit 1
           fi
           ;;
   *) echo "Unsupported OS: $(uname -s)" >&2; exit 1 ;;
@@ -49,7 +42,7 @@ if [ -n "${OPENAI_API_KEY:-}" ]; then
   ENV_ARGS+=(-e OPENAI_API_KEY="$OPENAI_API_KEY")
 fi
 
-# Linux hardening (Podman or Docker): keep just the capabilities needed for
+# Linux hardening (Podman): keep just the capabilities needed for
 # file handling and apt-get; Apple `container` runs each container in its
 # own VM instead.
 SEC_ARGS=()
