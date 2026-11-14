@@ -2,7 +2,7 @@ FROM docker.io/library/debian:trixie-slim
 
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt-get install -y --no-install-recommends ca-certificates curl gh git jq python3 python3-pip python3-venv python-is-python3 ripgrep tree \
+    && apt-get install -y --no-install-recommends ca-certificates curl gh git jq ripgrep tree \
     && rm -rf /var/lib/apt/lists/*
 
 # Install mise with the official installer outside /root (the launcher
@@ -16,6 +16,8 @@ RUN curl -fsSL https://mise.run | MISE_INSTALL_PATH=/usr/local/bin/mise MISE_INS
 ENV MISE_DATA_DIR=/usr/local/share/mise \
     MISE_TRUSTED_CONFIG_PATHS=/workspace \
     PATH="/usr/local/share/mise/shims:$PATH"
+
+RUN mise install python@latest uv@latest
 
 # Install with a temporary HOME so nothing lands in /root (the launcher
 # bind-mounts a host dir over it), then copy the self-contained binary
