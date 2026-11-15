@@ -21,9 +21,9 @@ $EnvArgs=@(
   "-e", "GIT_CONFIG_KEY_1=core.filemode",  "-e", "GIT_CONFIG_VALUE_1=false"
 )
 
-if (-not [string]::IsNullOrEmpty($env:OPENAI_API_KEY)) {
-  $envArgs += "-e", "OPENAI_API_KEY=$env:OPENAI_API_KEY"
-}
+# Bare -e KEY: the engine forwards the host's own value and skips unset ones,
+# so secret values never appear in the command line.
+$EnvArgs += "-e", "OPENAI_API_KEY"
 
 container run --rm -it  `
   --name "codex_cli_$(Get-Random)" `

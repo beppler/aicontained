@@ -28,27 +28,12 @@ fi
 NAME="$(basename "$HOST_DIR")"
 WORKDIR="/workspace/$HASH/${NAME//[^A-Za-z0-9._-]/_}"
 
+# Bare -e KEY: the engine forwards the host's own value and skips unset ones,
+# so secret values never appear in the command line.
 ENV_ARGS=()
-
-if [ -n "${TERM:-}" ]; then
-  ENV_ARGS+=(-e TERM="$TERM")
-fi
-
-if [ -n "${COLORTERM:-}" ]; then
-  ENV_ARGS+=(-e COLORTERM="$COLORTERM")
-fi
-
-if [ -n "${GEMINI_API_KEY:-}" ]; then
-  ENV_ARGS+=(-e GEMINI_API_KEY="${GEMINI_API_KEY}")
-fi
-
-if [ -n "${GOOGLE_API_KEY:-}" ]; then
-  ENV_ARGS+=(-e GOOGLE_API_KEY="${GOOGLE_API_KEY}")
-fi
-
-if [ -n "${GOOGLE_GENAI_USE_VERTEXAI:-}" ]; then
-  ENV_ARGS+=(-e GOOGLE_GENAI_USE_VERTEXAI="${GOOGLE_GENAI_USE_VERTEXAI}")
-fi
+for KEY in TERM COLORTERM GEMINI_API_KEY GOOGLE_API_KEY GOOGLE_GENAI_USE_VERTEXAI; do
+  ENV_ARGS+=(-e "$KEY")
+done
 
 # Linux hardening (Podman): keep just the capabilities needed for
 # file handling and apt-get; Apple `container` runs each container in its
@@ -68,4 +53,4 @@ fi
   -v "$HOME_DIR":/root \
   "${ENV_ARGS[@]+"${ENV_ARGS[@]}"}" \
   "${SEC_ARGS[@]+"${SEC_ARGS[@]}"}" \
-  agy-cli "$@"
+  cli-tools-agy "$@"

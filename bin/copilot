@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs Codex CLI in an isolated container.
+# Runs GitHub Copilot CLI in an isolated container.
 # Engine: Apple `container` on macOS, Podman on Linux.
 set -euo pipefail
 
@@ -28,15 +28,11 @@ fi
 NAME="$(basename "$HOST_DIR")"
 WORKDIR="/workspace/$HASH/${NAME//[^A-Za-z0-9._-]/_}"
 
+# Bare -e KEY: the engine forwards the host's own value and skips unset ones.
 ENV_ARGS=()
-
-if [ -n "${TERM:-}" ]; then
-  ENV_ARGS+=(-e TERM="$TERM")
-fi
-
-if [ -n "${COLORTERM:-}" ]; then
-  ENV_ARGS+=(-e COLORTERM="$COLORTERM")
-fi
+for KEY in TERM COLORTERM; do
+  ENV_ARGS+=(-e "$KEY")
+done
 
 # Linux hardening (Podman): keep just the capabilities needed for
 # file handling and apt-get; Apple `container` runs each container in its
