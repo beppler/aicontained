@@ -1,6 +1,7 @@
 FROM docker.io/library/debian:trixie-slim
 
-RUN apt-get update \
+RUN export DEBIAN_FRONTEND=noninteractive \
+    && apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends bubblewrap ca-certificates curl git tree libatomic1 \
     && rm -rf /var/lib/apt/lists/*
