@@ -30,4 +30,4 @@ container run --rm -it  `
   -v "${Workspace}:${WorkDir}" -w $WorkDir `
   -v "${HomeDir}:/root" `
   $EnvArgs `
-  codex-cli @args
+  cli-tools-codex @args

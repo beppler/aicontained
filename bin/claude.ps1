@@ -30,4 +30,4 @@ container run --rm -it  `
   -v "${Workspace}:${WorkDir}" -w $WorkDir `
   -v "${HomeDir}:/root" `
   $EnvArgs `
-  claude-cli @args
+  cli-tools-claude @args

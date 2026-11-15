@@ -24,4 +24,4 @@ container run --rm -it `
   -v "${Workspace}:${WorkDir}" -w $WorkDir `
   -v "${HomeDir}:/root" `
   $EnvArgs `
-  copilot-cli @args
+  cli-tools-copilot @args

@@ -71,7 +71,7 @@ try {
     -v "${HomeDir}:/root" `
     -v "${StateDir}:/root/.local/state/opencode" `
     $EnvArgs `
-    opencode-cli @args
+    cli-tools-opencode @args
 }
 finally {
   # Prompt history is appended (see save logic below), not overwritten.

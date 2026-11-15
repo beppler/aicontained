@@ -38,4 +38,4 @@ container run --rm -it `
   -v "${Workspace}:${WorkDir}" -w $WorkDir `
   -v "${HomeDir}:/root" `
   $EnvArgs `
-  agy-cli @args
+  cli-tools-agy @args
