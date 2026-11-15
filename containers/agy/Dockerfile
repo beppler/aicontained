@@ -2,7 +2,7 @@ FROM docker.io/library/debian:trixie-slim
 
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt-get install -y --no-install-recommends ca-certificates curl git tree \
+    && apt-get install -y --no-install-recommends ca-certificates curl git tree libatomic1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install mise with the official installer outside /root (the launcher
@@ -20,7 +20,7 @@ ENV MISE_DATA_DIR=/usr/local/share/mise \
     MISE_TRUSTED_CONFIG_PATHS=/workspace \
     PATH="/usr/local/share/mise/shims:$PATH"
 
-RUN mise use -g python@latest uv@latest gh@latest jq@latest ripgrep@latest
+RUN mise use -g gh@latest go@latest jq@latest node@lts python@latest ripgrep@latest uv@latest
 
 RUN curl -fsSL https://antigravity.google/cli/install.sh | bash -s -- --dir /usr/local/bin
 
