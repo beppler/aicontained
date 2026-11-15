@@ -2,7 +2,7 @@ FROM docker.io/library/debian:trixie-slim
 
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt-get install -y --no-install-recommends ca-certificates curl git tree \
+    && apt-get install -y --no-install-recommends ca-certificates curl git tree libatomic1\
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL https://mise.run | MISE_INSTALL_PATH=/usr/local/bin/mise MISE_INSTALL_HELP=0 sh
@@ -14,7 +14,7 @@ ENV MISE_DATA_DIR=/usr/local/share/mise \
     MISE_TRUSTED_CONFIG_PATHS=/workspace \
     PATH="/usr/local/share/mise/shims:$PATH"
 
-RUN mise use -g python@latest uv@latest gh@latest jq@latest ripgrep@latest
+RUN mise use -g gh@latest go@latest jq@latest node@lts python@latest ripgrep@latest uv@latest
 
 # Install with a temporary HOME so nothing lands in /root (the launcher
 # bind-mounts a host dir over it), then copy the self-contained binary
