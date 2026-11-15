@@ -28,6 +28,7 @@ else {
 }
 
 if (-not $ScriptsOnly) {
+    container build --no-cache -t cli-tools-base (Join-Path $ScriptDir "containers" "base")
     foreach ($tool in $Tools) {
         container build --no-cache -t "$tool-cli" (Join-Path $ScriptDir "containers" $tool)
     }
