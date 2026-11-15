@@ -21,9 +21,9 @@ $EnvArgs=@(
   "-e", "GIT_CONFIG_KEY_1=core.filemode",  "-e", "GIT_CONFIG_VALUE_1=false"
 )
 
-if (-not [string]::IsNullOrEmpty($env:ANTHROPIC_API_KEY)) {
-  $envArgs += "-e", "ANTHROPIC_API_KEY=$env:ANTHROPIC_API_KEY"
-}
+# Bare -e KEY: the engine forwards the host's own value and skips unset ones,
+# so secret values never appear in the command line.
+$EnvArgs += "-e", "ANTHROPIC_API_KEY"
 
 container run --rm -it  `
   --name "claude_cli_$(Get-Random)" `

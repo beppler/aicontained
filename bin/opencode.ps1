@@ -48,21 +48,12 @@ $EnvArgs=@(
   "-e", "GIT_CONFIG_KEY_1=core.filemode",  "-e", "GIT_CONFIG_VALUE_1=false"
 )
 
-if (-not [string]::IsNullOrEmpty($env:ANTHROPIC_API_KEY)) {
-  $envArgs += "-e", "ANTHROPIC_API_KEY=$env:ANTHROPIC_API_KEY"
-}
-
-if (-not [string]::IsNullOrEmpty($env:GEMINI_API_KEY)) {
-  $EnvArgs += "-e", "GEMINI_API_KEY=$env:GEMINI_API_KEY"
-}
-
-if (-not [string]::IsNullOrEmpty($env:GOOGLE_API_KEY)) {
-  $EnvArgs += "-e", "GOOGLE_API_KEY=$env:GOOGLE_API_KEY"
-}
-
-if (-not [string]::IsNullOrEmpty($env:GOOGLE_GENAI_USE_VERTEXAI)) {
-  $EnvArgs += "-e", "GOOGLE_GENAI_USE_VERTEXAI=$env:GOOGLE_GENAI_USE_VERTEXAI"
-}
+# Bare -e KEY: the engine forwards the host's own value and skips unset ones,
+# so secret values never appear in the command line.
+$EnvArgs += "-e", "ANTHROPIC_API_KEY"
+$EnvArgs += "-e", "GEMINI_API_KEY"
+$EnvArgs += "-e", "GOOGLE_API_KEY"
+$EnvArgs += "-e", "GOOGLE_GENAI_USE_VERTEXAI"
 
 try {
   container run --rm -it `
