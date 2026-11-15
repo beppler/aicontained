@@ -60,4 +60,4 @@ fi
   -v "$HOME_DIR":/root \
   "${ENV_ARGS[@]+"${ENV_ARGS[@]}"}" \
   "${SEC_ARGS[@]+"${SEC_ARGS[@]}"}" \
-  codex-cli "$@"
+  cli-tools-codex "$@"

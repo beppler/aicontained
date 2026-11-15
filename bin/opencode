@@ -125,4 +125,4 @@ fi
   -v "$STATE_DIR":/root/.local/state/opencode \
   "${ENV_ARGS[@]+"${ENV_ARGS[@]}"}" \
   "${SEC_ARGS[@]+"${SEC_ARGS[@]}"}" \
-  opencode-cli "$@"
+  cli-tools-opencode "$@"
