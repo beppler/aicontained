@@ -15,9 +15,9 @@ var all = []Tool{
 	{Name: "codex", HomeDir: "codex-home", EnvKeys: []string{"OPENAI_API_KEY"}},
 	{Name: "copilot", HomeDir: "copilot-home"},
 	{Name: "agy", HomeDir: "antigravity-home", EnvKeys: []string{"GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENAI_USE_VERTEXAI"}},
-	// OPENAI_API_KEY is passed even though the legacy bin/opencode script omits
-	// it: the README already promises it and the registry spec in issue #27
-	// lists it.
+	// OPENAI_API_KEY is passed even though the opencode image itself only
+	// needs a single provider key: the README already promises it and the
+	// registry spec in issue #27 lists it.
 	{Name: "opencode", HomeDir: "opencode-home", StateMount: true,
 		EnvKeys: []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENAI_USE_VERTEXAI"}},
 }

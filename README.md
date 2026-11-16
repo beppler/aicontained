@@ -24,18 +24,34 @@ Images are stored **per engine and per machine** — you must build on each mach
 
 ## Setup
 
+### Install the binary
+
+`cli-tools` is a single Go binary; all the per-tool commands (`claude`, `codex`, ...) are links to it:
+
+```bash
+go install github.com/beppler/cli-tools/cmd/cli-tools@latest
+```
+
+Or, from a checkout of this repo:
+
+```bash
+go build -o "$HOME/.local/bin/cli-tools" ./cmd/cli-tools
+```
+
+To set up a machine without Go, cross-compile everywhere first with `scripts/cross-build.sh` (output lands in `dist/`, one binary per platform), copy the matching `dist/cli-tools-<os>-<arch>` to the machine, and continue below.
+
 ### macOS / Linux
 
 ```bash
-./build              # build and install all five tools
-./build claude agy   # only some
-./build --scripts-only       # re-install wrappers without rebuilding images
-./build --prune-images       # also prune dangling build images
+cli-tools build             # build and install all five tools
+cli-tools build claude agy  # only some
+cli-tools build --launcher-only   # re-create the links without rebuilding images
+cli-tools build --prune-images    # also prune dangling build images
 ```
 
-Wrappers install to `~/.local/bin/` — make sure it's on your `PATH`.
+`cli-tools build` copies the binary to `~/.local/bin/` and creates one link per tool there — make sure `~/.local/bin` is on your `PATH`.
 
-On macOS, `container` requires Apple Silicon and macOS 15+ (full support on macOS 26). If the daemon isn't running yet, `build` starts it for you; on some setups you may need to run `container system start` again after a reboot.
+On macOS, `container` requires Apple Silicon and macOS 15+ (full support on macOS 26). If the daemon isn't running yet, `cli-tools build` starts it for you; on some setups you may need to run `container system start` again after a reboot.
 
 ### Windows (WSL Containers preview)
 
@@ -52,18 +68,18 @@ Reopen your terminal, then confirm it's there:
 wslc --version   # expect 2.9.3+
 ```
 
-Then:
+Then the same commands as on macOS/Linux (`go install ...` first):
 
 ```powershell
-./build.ps1                # all tools
-./build.ps1 claude agy     # only some
-./build.ps1 -ScriptsOnly   # wrappers only
-./build.ps1 -PruneImages   # also prune dangling images
+cli-tools build             # all tools
+cli-tools build claude agy  # only some
+cli-tools build --launcher-only
+cli-tools build --prune-images
 ```
 
-Wrappers install to `%LOCALAPPDATA%\Programs\bin`. Add that to your PATH and `claude`, `codex`, `copilot`, `agy`, `opencode` work from PowerShell or cmd.exe.
+`cli-tools build` installs to `%LOCALAPPDATA%\Programs\bin`. Add that to your PATH, then `claude`, `codex`, `copilot`, `agy`, `opencode` work from PowerShell or cmd.exe.
 
-`wslc.exe` ships as part of WSL itself and runs each container in its own lightweight Hyper-V VM.
+`wslc.exe` ships as part of WSL itself and runs each container in its own lightweight Hyper-V VM. Symlink creation on Windows needs Developer Mode (or elevation); without it, `cli-tools build` makes hardlink copies instead and warns.
 
 ### WSL (Podman networking)
 
@@ -112,7 +128,7 @@ On Windows the same layout lives under `%USERPROFILE%\.cli-tools\`.
 | Antigravity (personal accounts) | API key | OAuth unavailable; set `GEMINI_API_KEY` in a `.env` in `antigravity-home` — get one at [Google AI Studio](https://aistudio.google.com/app/apikey) |
 | OpenCode | Any | reads whichever of `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) is set, or `opencode auth login` in-container |
 
-API keys from your shell are passed through automatically (including PowerShell on Windows — `wslc.exe` is a native Windows process, so the scripts read `$env:...` directly and pass them into the container; no WSL-side configuration needed).
+API keys from your shell are passed through automatically (including PowerShell on Windows — the binary is a native Windows process, so it sees your environment variables directly; no WSL-side configuration needed).
 
 Note that OpenAI device-code login is **disabled by default** and must be turned on before it will work:
 
@@ -139,7 +155,7 @@ Verify Podman is running rootless:
 podman info --format '{{.Host.Security.Rootless}}'    # expect true
 ```
 
-**Linux hardening** (applied automatically by the wrappers on Podman):
+**Linux hardening** (applied automatically by the launcher on Podman):
 
 ```text
 --security-opt no-new-privileges
@@ -187,7 +203,7 @@ Only `service.json` (the per-run server registration) and the remaining `latest/
 
 ## Troubleshooting: Windows line endings (CRLF)
 
-A repo cloned on Windows has CRLF files on disk and LF in the index, which the host's global `core.autocrlf=true` hides. The container doesn't see your Windows gitconfig, so without help `git status` would show every file as modified. The Windows wrappers (`bin/*.ps1`) therefore pass these settings to Git inside the container:
+A repo cloned on Windows has CRLF files on disk and LF in the index, which the host's global `core.autocrlf=true` hides. The container doesn't see your Windows gitconfig, so without help `git status` would show every file as modified. The launcher therefore sets these settings for Git inside the container on Windows runs:
 
 ```text
 core.autocrlf=true

@@ -26,8 +26,8 @@ func HostPath() string {
 
 // ContainerPath returns the in-container mount point for hostDir:
 // /workspace/<sha256(hostDir), first 12 hex>/<sanitized folder name>.
-// Unified across OSes (the legacy Windows wrappers lowercased the path
-// first) — existing per-project state resets once.
+// Unified across OSes (Windows launchers used to lowercase the path first)
+// — existing per-project state resets once.
 func ContainerPath(hostDir string) string {
 	sum := sha256.Sum256([]byte(hostDir))
 	name := sanitize(filepath.Base(hostDir))
