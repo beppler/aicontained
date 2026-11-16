@@ -17,37 +17,28 @@ import (
 	"github.com/beppler/cli-tools/internal/tools"
 )
 
-// Build runs `cli-tools build [tool...] [--launcher-only] [--prune-images] [--no-cache]`
-// and returns the process exit code.
+// Build runs `cli-tools build [tool...] [--prune-images] [--no-cache]` and
+// returns the process exit code. It only builds images; use Install to put
+// the binary and per-tool links on disk.
 func Build(args []string) int {
-	launcherOnly, pruneImages, noCache := false, false, false
+	pruneImages, noCache := false, false
 	var names []string
 	for _, a := range args {
 		switch a {
-		case "--launcher-only":
-			launcherOnly = true
 		case "--prune-images":
 			pruneImages = true
 		case "--no-cache":
 			noCache = true
 		case "-h", "--help":
-			fmt.Println("usage: cli-tools build [tool...] [--launcher-only] [--prune-images] [--no-cache]")
+			fmt.Println("usage: cli-tools build [tool...] [--prune-images] [--no-cache]")
 			return 0
 		default:
 			names = append(names, a)
 		}
 	}
-	list := tools.All()
-	if len(names) > 0 {
-		list = nil
-		for _, n := range names {
-			t, ok := tools.Lookup(n)
-			if !ok {
-				fmt.Fprintf(os.Stderr, "Unknown tool: %s (available: %s)\n", n, toolNames())
-				return 1
-			}
-			list = append(list, t)
-		}
+	list, code := resolveTools(names)
+	if code != 0 {
+		return code
 	}
 
 	eng, err := engine.Detect()
@@ -56,32 +47,30 @@ func Build(args []string) int {
 		return 1
 	}
 
-	if !launcherOnly {
-		if runtime.GOOS == "darwin" {
-			eng.Run("system", "start") // nudge a stopped daemon, like the legacy script
-			if err := ensureRosetta(); err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				return 1
-			}
-		}
-		root, err := writeContainers()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "cli-tools: extracting image definitions:", err)
+	if runtime.GOOS == "darwin" {
+		eng.Run("system", "start") // nudge a stopped daemon, like the legacy script
+		if err := ensureRosetta(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
-		defer os.RemoveAll(root)
+	}
+	root, err := writeContainers()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "cli-tools: extracting image definitions:", err)
+		return 1
+	}
+	defer os.RemoveAll(root)
 
-		for _, image := range buildList(list) {
-			dir := filepath.Join(root, "containers", image.dir)
-			buildArgs := []string{"build"}
-			if noCache {
-				buildArgs = append(buildArgs, "--no-cache")
-			}
-			buildArgs = append(buildArgs, "-t", image.tag, dir)
-			if code, err := eng.Run(buildArgs...); err != nil || code != 0 {
-				fmt.Fprintf(os.Stderr, "cli-tools: building %s failed\n", image.tag)
-				return exitish(code, err)
-			}
+	for _, image := range buildList(list) {
+		dir := filepath.Join(root, "containers", image.dir)
+		buildArgs := []string{"build"}
+		if noCache {
+			buildArgs = append(buildArgs, "--no-cache")
+		}
+		buildArgs = append(buildArgs, "-t", image.tag, dir)
+		if code, err := eng.Run(buildArgs...); err != nil || code != 0 {
+			fmt.Fprintf(os.Stderr, "cli-tools: building %s failed\n", image.tag)
+			return exitish(code, err)
 		}
 	}
 
@@ -95,14 +84,53 @@ func Build(args []string) int {
 		}
 	}
 
+	fmt.Printf("Built images (%s) for: %s\n", eng.Name, toolNames(list))
+	return 0
+}
+
+// Install runs `cli-tools install [tool...]` and returns the process exit
+// code. It copies the running binary to the user's private bin dir and
+// creates one link per tool, so argv[0] dispatch picks the right tool.
+func Install(args []string) int {
+	var names []string
+	for _, a := range args {
+		switch a {
+		case "-h", "--help":
+			fmt.Println("usage: cli-tools install [tool...]")
+			return 0
+		default:
+			names = append(names, a)
+		}
+	}
+	list, code := resolveTools(names)
+	if code != 0 {
+		return code
+	}
 	dest, err := install(list)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "cli-tools: install:", err)
 		return 1
 	}
-	fmt.Printf("Done (%s). Make sure %s is on your PATH, then just run: %s\n",
-		eng.Name, dest, toolNames())
+	fmt.Printf("Done. Make sure %s is on your PATH, then just run: %s\n", dest, toolNames(list))
 	return 0
+}
+
+// resolveTools maps user-supplied names to tools; no names means all tools.
+// Returns a nonzero exit code on the first unknown name.
+func resolveTools(names []string) ([]tools.Tool, int) {
+	if len(names) == 0 {
+		return tools.All(), 0
+	}
+	var list []tools.Tool
+	for _, n := range names {
+		t, ok := tools.Lookup(n)
+		if !ok {
+			fmt.Fprintf(os.Stderr, "Unknown tool: %s (available: %s)\n", n, toolNames(tools.All()))
+			return nil, 1
+		}
+		list = append(list, t)
+	}
+	return list, 0
 }
 
 type imageSpec struct{ tag, dir string }
@@ -252,10 +280,10 @@ func copyExecutable(src, dst string) error {
 	return out.Close()
 }
 
-func toolNames() string {
-	var names []string
-	for _, t := range tools.All() {
-		names = append(names, t.Name)
+func toolNames(list []tools.Tool) string {
+	names := make([]string, len(list))
+	for i, t := range list {
+		names[i] = t.Name
 	}
 	return strings.Join(names, " ")
 }

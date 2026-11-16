@@ -54,3 +54,13 @@ func TestInstall(t *testing.T) {
 		}
 	}
 }
+
+// Install rejects unknown tool names with exit code 1, like Build does.
+func TestInstallUnknownTool(t *testing.T) {
+	if code := Install([]string{"nope"}); code != 1 {
+		t.Errorf("Install(nope) = %d, want 1", code)
+	}
+	if code := Install([]string{"--help"}); code != 0 {
+		t.Errorf("Install(--help) = %d, want 0", code)
+	}
+}
