@@ -68,7 +68,7 @@ func usage() {
 Usage:
   claude|codex|copilot|agy|opencode [args...]
   cli-tools <tool> [args...]
-  cli-tools build [tool...] [--launcher-only] [--prune-images]
+  cli-tools build [tool...] [--launcher-only] [--prune-images] [--no-cache]
   cli-tools --list
 `)
 }

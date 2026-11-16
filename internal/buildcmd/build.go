@@ -17,10 +17,10 @@ import (
 	"github.com/beppler/cli-tools/internal/tools"
 )
 
-// Build runs `cli-tools build [tool...] [--launcher-only] [--prune-images]`
+// Build runs `cli-tools build [tool...] [--launcher-only] [--prune-images] [--no-cache]`
 // and returns the process exit code.
 func Build(args []string) int {
-	launcherOnly, pruneImages := false, false
+	launcherOnly, pruneImages, noCache := false, false, false
 	var names []string
 	for _, a := range args {
 		switch a {
@@ -28,8 +28,10 @@ func Build(args []string) int {
 			launcherOnly = true
 		case "--prune-images":
 			pruneImages = true
+		case "--no-cache":
+			noCache = true
 		case "-h", "--help":
-			fmt.Println("usage: cli-tools build [tool...] [--launcher-only] [--prune-images]")
+			fmt.Println("usage: cli-tools build [tool...] [--launcher-only] [--prune-images] [--no-cache]")
 			return 0
 		default:
 			names = append(names, a)
@@ -71,7 +73,12 @@ func Build(args []string) int {
 
 		for _, image := range buildList(list) {
 			dir := filepath.Join(root, "containers", image.dir)
-			if code, err := eng.Run("build", "--no-cache", "-t", image.tag, dir); err != nil || code != 0 {
+			buildArgs := []string{"build"}
+			if noCache {
+				buildArgs = append(buildArgs, "--no-cache")
+			}
+			buildArgs = append(buildArgs, "-t", image.tag, dir)
+			if code, err := eng.Run(buildArgs...); err != nil || code != 0 {
 				fmt.Fprintf(os.Stderr, "cli-tools: building %s failed\n", image.tag)
 				return exitish(code, err)
 			}

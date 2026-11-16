@@ -47,7 +47,10 @@ cli-tools build             # build and install all five tools
 cli-tools build claude agy  # only some
 cli-tools build --launcher-only   # re-create the links without rebuilding images
 cli-tools build --prune-images    # also prune dangling build images
+cli-tools build --no-cache        # skip the build cache and refetch everything
 ```
+
+`cli-tools build` uses the engine's build cache — layers only rebuild when their inputs change. Tool installs fetch from the network, so the cache won't pick up tool updates on its own; use `--no-cache` to rebuild from scratch and get the latest tools.
 
 `cli-tools build` copies the binary to `~/.local/bin/` and creates one link per tool there — make sure `~/.local/bin` is on your `PATH`.
 
