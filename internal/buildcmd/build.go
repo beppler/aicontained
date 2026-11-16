@@ -36,17 +36,9 @@ func Build(args []string) int {
 			names = append(names, a)
 		}
 	}
-	list := tools.All()
-	if len(names) > 0 {
-		list = nil
-		for _, n := range names {
-			t, ok := tools.Lookup(n)
-			if !ok {
-				fmt.Fprintf(os.Stderr, "Unknown tool: %s (available: %s)\n", n, toolNames())
-				return 1
-			}
-			list = append(list, t)
-		}
+	list, code := resolveTools(names)
+	if code != 0 {
+		return code
 	}
 
 	eng, err := engine.Detect()
@@ -92,7 +84,7 @@ func Build(args []string) int {
 		}
 	}
 
-	fmt.Printf("Built images (%s) for: %s\n", eng.Name, toolNames())
+	fmt.Printf("Built images (%s) for: %s\n", eng.Name, toolNames(list))
 	return 0
 }
 
@@ -110,25 +102,35 @@ func Install(args []string) int {
 			names = append(names, a)
 		}
 	}
-	list := tools.All()
-	if len(names) > 0 {
-		list = nil
-		for _, n := range names {
-			t, ok := tools.Lookup(n)
-			if !ok {
-				fmt.Fprintf(os.Stderr, "Unknown tool: %s (available: %s)\n", n, toolNames())
-				return 1
-			}
-			list = append(list, t)
-		}
+	list, code := resolveTools(names)
+	if code != 0 {
+		return code
 	}
 	dest, err := install(list)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "cli-tools: install:", err)
 		return 1
 	}
-	fmt.Printf("Done. Make sure %s is on your PATH, then just run: %s\n", dest, toolNames())
+	fmt.Printf("Done. Make sure %s is on your PATH, then just run: %s\n", dest, toolNames(list))
 	return 0
+}
+
+// resolveTools maps user-supplied names to tools; no names means all tools.
+// Returns a nonzero exit code on the first unknown name.
+func resolveTools(names []string) ([]tools.Tool, int) {
+	if len(names) == 0 {
+		return tools.All(), 0
+	}
+	var list []tools.Tool
+	for _, n := range names {
+		t, ok := tools.Lookup(n)
+		if !ok {
+			fmt.Fprintf(os.Stderr, "Unknown tool: %s (available: %s)\n", n, toolNames(tools.All()))
+			return nil, 1
+		}
+		list = append(list, t)
+	}
+	return list, 0
 }
 
 type imageSpec struct{ tag, dir string }
@@ -278,10 +280,10 @@ func copyExecutable(src, dst string) error {
 	return out.Close()
 }
 
-func toolNames() string {
-	var names []string
-	for _, t := range tools.All() {
-		names = append(names, t.Name)
+func toolNames(list []tools.Tool) string {
+	names := make([]string, len(list))
+	for i, t := range list {
+		names[i] = t.Name
 	}
 	return strings.Join(names, " ")
 }
