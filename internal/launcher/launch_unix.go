@@ -9,16 +9,19 @@ import (
 	"syscall"
 )
 
-// runChild starts the engine as a child process in its own process group,
-// inherits the real terminal (no PTY plumbing), forwards signals, and
-// returns the child's exit code.
+// runChild starts the engine as a child process that shares this process
+// group and inherits the real terminal (no PTY plumbing), exactly like the
+// legacy bash scripts did.
+//
+// No Setpgid: a child in a background process group that reads the TTY —
+// which podman -i does — is suspended by SIGTTIN and hangs with the
+// container stuck in "Created". Terminal Ctrl+C is delivered by the kernel
+// to the whole foreground group, launcher included, so SIGINT is swallowed
+// here while the engine tears the container down. A SIGTERM aimed only at
+// this process is forwarded so the container is still cleaned up.
 func runChild(name string, args []string) (int, error) {
 	cmd := exec.Command(name, args...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	// Own process group: terminal-generated SIGINT reaches only this
-	// launcher, which forwards it — otherwise the launcher would die and
-	// orphan the container.
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
 		return 1, err
 	}
@@ -28,8 +31,12 @@ func runChild(name string, args []string) (int, error) {
 	defer signal.Stop(ch)
 	go func() {
 		for sig := range ch {
-			// Negative PID = the child's whole process group.
-			_ = syscall.Kill(-cmd.Process.Pid, sig.(syscall.Signal))
+			if sig == syscall.SIGINT {
+				continue // kernel already delivered it to the whole group
+			}
+			if cmd.Process != nil {
+				_ = cmd.Process.Signal(syscall.SIGTERM)
+			}
 		}
 	}()
 
