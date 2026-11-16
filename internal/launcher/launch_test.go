@@ -6,8 +6,7 @@ import (
 	"github.com/beppler/cli-tools/internal/tools"
 )
 
-// Golden test pinning the exact engine flags per platform, ported from the
-// legacy bin/* scripts.
+// Golden test pinning the exact engine flags per platform.
 func TestAssemble(t *testing.T) {
 	host, work, home := "/home/u/proj", "/workspace/HASH/proj", "/home/u/.cli-tools"
 	cases := []struct {

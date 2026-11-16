@@ -1,7 +1,5 @@
 // Package buildcmd implements the `cli-tools build` subcommand: build the
-// container images, then install the binary with per-tool links. It
-// supersedes the root `build` / `build.ps1` scripts (which become thin
-// wrappers) and replaces their shim-copy step entirely.
+// container images, then install the binary with per-tool links.
 package buildcmd
 
 import (
@@ -26,7 +24,7 @@ func Build(args []string) int {
 	var names []string
 	for _, a := range args {
 		switch a {
-		case "--launcher-only", "--scripts-only": // --scripts-only: legacy alias
+		case "--launcher-only":
 			launcherOnly = true
 		case "--prune-images":
 			pruneImages = true
