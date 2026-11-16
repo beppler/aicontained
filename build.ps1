@@ -1,49 +1,18 @@
-# Builds the isolated CLI images using WSL Containers (wslc.exe),
-# and installs the wrapper scripts to %USERPROFILE%\.local\bin.
-# Builds every tool by default, or only the ones named as arguments:
-#   .\build.ps1             # all tools
-#   .\build.ps1 claude agy  # just these
-# Pass -ScriptsOnly to install the wrapper scripts without rebuilding images:
-#   .\build.ps1 -ScriptsOnly [tools]
+# Deprecated: builds the images and installs the compiled binary via
+# `cli-tools build`. Kept until the busybox-launcher migration cutover
+# (issue #41); run `cli-tools build` directly instead.
 param(
     [switch]$ScriptsOnly,
     [switch]$PruneImages,
     [Parameter(ValueFromRemainingArguments = $true)][string[]]$Tools
 )
-
 $ErrorActionPreference = "Stop"
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-
-$AllTools = @("agy", "claude", "codex", "copilot", "opencode")
-
-if ($Tools) {
-    foreach ($tool in $Tools) {
-        if ($AllTools -notcontains $tool) {
-            throw "Unknown tool: $tool (available: $($AllTools -join ' '))"
-        }
-    }
+if (-not (Get-Command cli-tools -ErrorAction SilentlyContinue)) {
+    Write-Error "cli-tools is not installed. Build and install it first: go build -o `"$env:LOCALAPPDATA\Programs\bin\cli-tools.exe`" ./cmd/cli-tools ; then run: cli-tools build"
 }
-else {
-    $Tools = $AllTools
-}
-
-if (-not $ScriptsOnly) {
-    container build --no-cache -t cli-tools-base (Join-Path $ScriptDir "containers" "base")
-    foreach ($tool in $Tools) {
-        container build --no-cache -t "cli-tools-$tool" (Join-Path $ScriptDir "containers" $tool)
-    }
-}
-
-if ($PruneImages) {
-    container image prune -f
-}
-
-$Dest = "$env:LOCALAPPDATA\Programs\bin"
-New-Item -ItemType Directory -Force -Path $Dest | Out-Null
-
-foreach ($tool in $Tools) {
-    Copy-Item (Join-Path $ScriptDir "bin" "$tool.cmd") $Dest -Force
-    Copy-Item (Join-Path $ScriptDir "bin" "$tool.ps1") $Dest -Force
-}
-
-Write-Host "Done. Add $Dest to your PATH (if not already), then just run: $($Tools -join ' ')"
+$CliArgs = @("build")
+if ($ScriptsOnly) { $CliArgs += "--launcher-only" }
+if ($PruneImages) { $CliArgs += "--prune-images" }
+if ($Tools) { $CliArgs += $Tools }
+& cli-tools @CliArgs
+exit $LASTEXITCODE

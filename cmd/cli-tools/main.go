@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/beppler/cli-tools/internal/buildcmd"
 	"github.com/beppler/cli-tools/internal/launcher"
 	"github.com/beppler/cli-tools/internal/tools"
 )
@@ -26,6 +27,8 @@ func main() {
 		os.Exit(1)
 	}
 	switch args[0] {
+	case "build":
+		os.Exit(buildcmd.Build(args[1:]))
 	case "-h", "--help", "help":
 		usage()
 	case "--list", "list":
@@ -65,6 +68,7 @@ func usage() {
 Usage:
   claude|codex|copilot|agy|opencode [args...]
   cli-tools <tool> [args...]
+  cli-tools build [tool...] [--launcher-only] [--prune-images]
   cli-tools --list
 `)
 }
