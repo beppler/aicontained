@@ -29,6 +29,8 @@ func main() {
 	switch args[0] {
 	case "build":
 		os.Exit(buildcmd.Build(args[1:]))
+	case "install":
+		os.Exit(buildcmd.Install(args[1:]))
 	case "-h", "--help", "help":
 		usage()
 	case "--list", "list":
@@ -68,7 +70,8 @@ func usage() {
 Usage:
   claude|codex|copilot|agy|opencode [args...]
   cli-tools <tool> [args...]
-  cli-tools build [tool...] [--launcher-only] [--prune-images] [--no-cache]
+  cli-tools build [tool...] [--prune-images] [--no-cache]
+  cli-tools install [tool...]
   cli-tools --list
 `)
 }

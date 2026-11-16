@@ -43,16 +43,19 @@ To set up a machine without Go, cross-compile everywhere first with `scripts/cro
 ### macOS / Linux
 
 ```bash
-cli-tools build             # build and install all five tools
+cli-tools install           # install the binary and create all five tool links
+cli-tools install claude agy # only some
+cli-tools build             # build all images (no install)
 cli-tools build claude agy  # only some
-cli-tools build --launcher-only   # re-create the links without rebuilding images
 cli-tools build --prune-images    # also prune dangling build images
 cli-tools build --no-cache        # skip the build cache and refetch everything
 ```
 
+Build and install are separate: `cli-tools build` only builds the container images; `cli-tools install` copies the binary to `~/.local/bin/` and creates one link per tool there — make sure `~/.local/bin` is on your `PATH`. On a fresh machine run `install` once, then `build` (in either order).
+
 `cli-tools build` uses the engine's build cache — layers only rebuild when their inputs change. Tool installs and base-image OS updates (`apt-get upgrade`) fetch from the network, so the cache won't pick up tool or security-patch updates on its own; use `--no-cache` to rebuild from scratch and get the latest tools, or run it periodically to pick up OS security patches.
 
-`cli-tools build` copies the binary to `~/.local/bin/` and creates one link per tool there — make sure `~/.local/bin` is on your `PATH`.
+`cli-tools install` copies the binary to `~/.local/bin/` and creates one link per tool there — make sure `~/.local/bin` is on your `PATH`.
 
 On macOS, `container` requires Apple Silicon and macOS 15+ (full support on macOS 26). If the daemon isn't running yet, `cli-tools build` starts it for you; on some setups you may need to run `container system start` again after a reboot.
 
@@ -74,15 +77,16 @@ wslc --version   # expect 2.9.3+
 Then the same commands as on macOS/Linux (`go install ...` first):
 
 ```powershell
-cli-tools build             # all tools
-cli-tools build claude agy  # only some
-cli-tools build --launcher-only
+cli-tools install           # all tools
+cli-tools install claude agy # only some
+cli-tools build
+cli-tools build claude agy
 cli-tools build --prune-images
 ```
 
-`cli-tools build` installs to `%LOCALAPPDATA%\Programs\bin`. Add that to your PATH, then `claude`, `codex`, `copilot`, `agy`, `opencode` work from PowerShell or cmd.exe.
+`cli-tools install` installs to `%LOCALAPPDATA%\Programs\bin`. Add that to your PATH, then `claude`, `codex`, `copilot`, `agy`, `opencode` work from PowerShell or cmd.exe.
 
-`wslc.exe` ships as part of WSL itself and runs each container in its own lightweight Hyper-V VM. Symlink creation on Windows needs Developer Mode (or elevation); without it, `cli-tools build` makes hardlink copies instead and warns.
+`wslc.exe` ships as part of WSL itself and runs each container in its own lightweight Hyper-V VM. Symlink creation on Windows needs Developer Mode (or elevation); without it, `cli-tools install` makes hardlink copies instead and warns.
 
 ### WSL (Podman networking)
 
