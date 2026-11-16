@@ -10,6 +10,7 @@ import (
 	"runtime"
 
 	"github.com/beppler/cli-tools/internal/engine"
+	"github.com/beppler/cli-tools/internal/opencode"
 	"github.com/beppler/cli-tools/internal/tools"
 	"github.com/beppler/cli-tools/internal/workdir"
 )
@@ -36,13 +37,26 @@ func Run(tool tools.Tool, args []string) (int, error) {
 	if runtime.GOOS == "windows" {
 		name = fmt.Sprintf("%s_cli_%d", tool.Name, rand.IntN(1<<31))
 	}
-	cmdArgs := assemble(tool, runtime.GOOS, host, workdir.ContainerPath(host), home, name, args)
+	stateDir := ""
+	if tool.StateMount {
+		run, err := opencode.Seed(home)
+		if err != nil {
+			return 1, err
+		}
+		defer func() {
+			if err := run.Save(); err != nil {
+				fmt.Fprintln(os.Stderr, "cli-tools: warning: saving opencode state:", err)
+			}
+		}()
+		stateDir = run.Dir()
+	}
+	cmdArgs := assemble(tool, runtime.GOOS, host, workdir.ContainerPath(host), home, stateDir, name, args)
 	return runChild(eng.Name, cmdArgs)
 }
 
 // assemble builds the full engine argument list. Pure so the golden test can
 // pin the exact flags per platform.
-func assemble(tool tools.Tool, goos, hostDir, workDir, homeDir, containerName string, args []string) []string {
+func assemble(tool tools.Tool, goos, hostDir, workDir, homeDir, stateDir, containerName string, args []string) []string {
 	out := []string{"run", "--rm", "-it"}
 
 	// Apple `container` runs each container in its own VM; quiet its
@@ -56,6 +70,10 @@ func assemble(tool tools.Tool, goos, hostDir, workDir, homeDir, containerName st
 		"-w", workDir,
 		"-v", homeDir+":/root",
 	)
+	if stateDir != "" {
+		// opencode's per-run state dir; the launcher saves it back on exit.
+		out = append(out, "-v", stateDir+":/root/.local/state/opencode")
+	}
 
 	// The engine forwards the host's own value for a bare -e KEY and skips
 	// unset ones, so secret values never appear in the command line.

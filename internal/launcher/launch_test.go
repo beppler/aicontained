@@ -15,8 +15,8 @@ func TestAssemble(t *testing.T) {
 		tool     string
 		goos     string
 		ctrName  string
+		stateDir string
 		homeSub  string
-		wantHome string // mounted under /root
 		want     []string
 	}{
 		{
@@ -98,6 +98,23 @@ func TestAssemble(t *testing.T) {
 				"cli-tools-agy", "--version",
 			},
 		},
+		{
+			// opencode is the only tool with the per-run state dir mount.
+			name: "opencode/linux", tool: "opencode", goos: "linux", stateDir: home + "/opencode-home/.local/state/opencode-1234", homeSub: "opencode-home",
+			want: []string{
+				"run", "--rm", "-it",
+				"-v", host + ":" + work, "-w", work,
+				"-v", home + "/opencode-home:/root",
+				"-v", home + "/opencode-home/.local/state/opencode-1234:/root/.local/state/opencode",
+				"-e", "TERM", "-e", "COLORTERM",
+				"-e", "ANTHROPIC_API_KEY", "-e", "OPENAI_API_KEY",
+				"-e", "GEMINI_API_KEY", "-e", "GOOGLE_API_KEY", "-e", "GOOGLE_GENAI_USE_VERTEXAI",
+				"--security-opt", "no-new-privileges",
+				"--cap-drop=ALL",
+				"--cap-add=CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETUID,SETGID",
+				"cli-tools-opencode", "--version",
+			},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -105,7 +122,7 @@ func TestAssemble(t *testing.T) {
 			if !ok {
 				t.Fatalf("unknown tool %q", c.tool)
 			}
-			got := assemble(tool, c.goos, host, work, home+"/"+c.homeSub, c.ctrName, []string{"--version"})
+			got := assemble(tool, c.goos, host, work, home+"/"+c.homeSub, c.stateDir, c.ctrName, []string{"--version"})
 			if len(got) != len(c.want) {
 				t.Fatalf("got:\n  %q\nwant:\n  %q", got, c.want)
 			}
