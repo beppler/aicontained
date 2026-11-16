@@ -14,11 +14,8 @@ import (
 )
 
 func main() {
-	name := strings.ToLower(filepath.Base(os.Args[0]))
-	name = strings.TrimSuffix(name, ".exe")
-
-	if name != "cli-tools" {
-		runTool(name, os.Args[1:])
+	if tool, ok := toolFor(os.Args[0]); ok {
+		runTool(tool, os.Args[1:])
 	}
 
 	args := os.Args[1:]
@@ -38,21 +35,40 @@ func main() {
 			fmt.Println(t.Name)
 		}
 	default:
-		runTool(args[0], args[1:])
+		runFor(args[0], args[1:])
 	}
 }
 
-func runTool(name string, args []string) {
-	tool, ok := tools.Lookup(name)
-	if !ok {
-		fmt.Fprintf(os.Stderr, "Unknown tool: %s (available: %s)\n", name, strings.Join(names(), " "))
-		os.Exit(1)
-	}
+// toolFor maps argv0 to a known tool command, or reports false when the
+// invocation should be handled as the cli-tools command itself. Known tool
+// names win over the binary name, so a cross-built copy
+// (cli-tools-linux-amd64) still reaches the cli-tools subcommands.
+func toolFor(argv0 string) (tools.Tool, bool) {
+	return tools.Lookup(toolName(argv0))
+}
+
+// toolName extracts the tool command name from argv0: the lowercased
+// basename without a Windows .exe suffix.
+func toolName(argv0 string) string {
+	name := strings.ToLower(filepath.Base(argv0))
+	return strings.TrimSuffix(name, ".exe")
+}
+
+func runTool(tool tools.Tool, args []string) {
 	rc, err := launcher.Run(tool, args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "cli-tools:", err)
 	}
 	os.Exit(rc)
+}
+
+func runFor(name string, args []string) {
+	tool, ok := tools.Lookup(name)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "Unknown tool: %s (available: %s)\n", name, strings.Join(names(), " "))
+		os.Exit(1)
+	}
+	runTool(tool, args)
 }
 
 func names() []string {
