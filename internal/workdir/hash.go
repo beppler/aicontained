@@ -13,15 +13,15 @@ import (
 
 // HostPath returns the canonical absolute path of the current directory
 // (pwd -P equivalent, symlinks resolved).
-func HostPath() string {
+func HostPath() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
-		return dir
+		return "", err
 	}
 	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
 		dir = resolved
 	}
-	return dir
+	return dir, nil
 }
 
 // ContainerPath returns the in-container mount point for hostDir:
