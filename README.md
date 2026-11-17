@@ -60,7 +60,7 @@ wsl --update --pre-release
 wsl --shutdown
 ```
 
-Reopen the terminal, then confirm `wslc --version` prints 2.9.3+. After `cli-tools install`, `claude`, `codex`, `copilot`, `agy`, `opencode` work from PowerShell or cmd.exe. Symlink creation there needs Developer Mode (or elevation); without it, `install` makes hardlink copies instead and warns. `wslc.exe` ships as part of WSL itself and runs each container in its own lightweight Hyper-V VM.
+Reopen the terminal, then confirm `wslc --version` prints 2.9.3+. After `cli-tools install`, `claude`, `codex`, `copilot`, `agy`, `opencode` work from PowerShell or cmd.exe. Symlink creation there needs Developer Mode (or elevation); without it, `install` fails with a message saying exactly that. `wslc.exe` ships as part of WSL itself and runs each container in its own lightweight Hyper-V VM.
 
 **macOS.** Apple `container` requires Apple Silicon and macOS 15+ (full support on macOS 26). `cli-tools build` starts the daemon for you; on some setups you may need `container system start` again after a reboot.
 
@@ -174,5 +174,7 @@ Two caveats:
 
 - A committed `.gitattributes` still takes precedence.
 - These settings override the repo's `.git/config` — a deliberately LF-only repo (`core.autocrlf=false`) can get files rewritten to CRLF by a `git checkout` or `git stash pop` inside the container.
+
+**Go tools (`gofmt -l` lists every file):** `gofmt` treats CRLF as unformatted, and `core.autocrlf` can't help because the files really are CRLF on disk. Commit a `.gitattributes` with `*.go text eol=lf` (this repo does), then refresh the working tree: `git rm --cached -r -q . && git reset --hard` (commit or stash changes first).
 
 Still seeing phantom diffs? Check with `git diff --ignore-cr-at-eol --stat`; if needed, set the same two values in the repo's `.git/config` and add to the project's `CLAUDE.md`/`AGENTS.md`: "This working tree uses Windows line endings. Never convert or 'fix' line endings." Don't run `dos2unix` — it only moves the phantom changes to the Windows side and breaks `.bat`/`.cmd` files.

@@ -3,6 +3,7 @@
 package buildcmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -201,6 +202,7 @@ func install(list []tools.Tool) (string, error) {
 	if err := os.MkdirAll(dest, 0o755); err != nil {
 		return "", err
 	}
+	sweepStale(dest)
 	dst := filepath.Join(dest, binaryName())
 	if !sameFile(exe, dst) { // installing the running binary onto itself: skip
 		if err := copyExecutable(exe, dst); err != nil {
@@ -240,21 +242,64 @@ func binDir() string {
 	return filepath.Join(home, ".local", "bin")
 }
 
+// linkTool creates a per-tool symlink to the binary. Symlinks are required:
+// deleting one never touches the target executable, so a reinstall never hits
+// a busy-file error.
 func linkTool(target, link string) error {
-	_ = os.Remove(link)
+	if err := removeOldLink(link); err != nil {
+		return err
+	}
 	err := os.Symlink(filepath.Base(target), link)
 	if err == nil {
 		return nil
 	}
 	if runtime.GOOS == "windows" {
-		// Symlink creation needs Developer Mode (or elevation); a hardlink
-		// copy works without either.
-		if lerr := os.Link(target, link); lerr == nil {
-			fmt.Fprintln(os.Stderr, "warning: symlink creation failed, made a hardlink copy instead (enable Windows Developer Mode for real symlinks):", err)
-			return nil
-		}
+		// Symlink creation needs Developer Mode (or elevation); without it
+		// there is no fallback.
+		return fmt.Errorf("%w (Windows symlink creation needs Developer Mode or an elevated terminal)", err)
 	}
 	return err
+}
+
+// removeOldLink deletes the previous per-tool link. On Windows a hardlink to
+// a running exe (from an install made before symlinks were required) can't be
+// deleted, only renamed: move it aside and let the next install sweep it.
+func removeOldLink(link string) error {
+	err := os.Remove(link)
+	if err == nil || errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if runtime.GOOS != "windows" {
+		return err
+	}
+	old := fmt.Sprintf("%s.old-%d", link, os.Getpid())
+	if rerr := os.Rename(link, old); rerr != nil {
+		return rerr
+	}
+	os.Remove(old) // busy while a session still runs the hardlink; swept next install
+	return nil
+}
+
+// sweepStale deletes leftovers from earlier installs: the ".new" staging file
+// and ".old-<pid>" renames that were busy last time. Only our own file names
+// match, so nothing else in the bin dir is touched.
+func sweepStale(dest string) {
+	prefixes := []string{binaryName() + ".old-", binaryName() + ".new"}
+	for _, t := range tools.All() {
+		prefixes = append(prefixes, linkName(t.Name)+".old-")
+	}
+	entries, err := os.ReadDir(dest)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		for _, p := range prefixes {
+			if strings.HasPrefix(e.Name(), p) {
+				os.Remove(filepath.Join(dest, e.Name())) // busy or gone: try again next install
+				break
+			}
+		}
+	}
 }
 
 func sameFile(a, b string) bool {
@@ -263,21 +308,53 @@ func sameFile(a, b string) bool {
 	return erra == nil && errb == nil && os.SameFile(ai, bi)
 }
 
+// copyExecutable replaces dst with a copy of src, staged as dst+".new-<pid>"
+// and swapped in with a rename so a failed copy can't truncate the installed
+// binary. The pid keeps two overlapping installs from writing the same
+// staging file. On Unix the rename replaces a running binary in place; on
+// Windows a running exe can't be overwritten, only renamed, so the old file
+// is moved aside first.
 func copyExecutable(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o755)
+	tmp := fmt.Sprintf("%s.new-%d", dst, os.Getpid())
+	out, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o755)
 	if err != nil {
 		return err
 	}
 	if _, err := io.Copy(out, in); err != nil {
 		out.Close()
+		os.Remove(tmp)
 		return err
 	}
-	return out.Close()
+	if err := out.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	old := fmt.Sprintf("%s.old-%d", dst, os.Getpid())
+	swapped := false
+	if runtime.GOOS == "windows" {
+		if err := os.Rename(dst, old); err == nil {
+			swapped = true
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			os.Remove(tmp)
+			return err
+		}
+	}
+	if err := os.Rename(tmp, dst); err != nil {
+		os.Remove(tmp)
+		if swapped {
+			os.Rename(old, dst) // put the old binary back so the install stays usable
+		}
+		return err
+	}
+	if swapped {
+		os.Remove(old) // busy while a session still runs it; swept next install
+	}
+	return nil
 }
 
 func toolNames(list []tools.Tool) string {
