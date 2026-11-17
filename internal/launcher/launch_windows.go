@@ -15,8 +15,7 @@ func runChild(name string, args []string) (int, error) {
 	cmd := exec.Command(name, args...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	err := cmd.Run()
-	var exitErr *exec.ExitError
-	if !errors.As(err, &exitErr) {
+	if _, ok := errors.AsType[*exec.ExitError](err); !ok {
 		return exitCode(cmd.ProcessState), err
 	}
 	// The child started and ran to completion: its exit code is the
