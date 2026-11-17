@@ -27,7 +27,10 @@ func Run(tool tools.Tool, args []string) (int, error) {
 	if err != nil {
 		return 1, err
 	}
-	host := workdir.HostPath()
+	host, err := workdir.HostPath()
+	if err != nil {
+		return 1, fmt.Errorf("cannot read current directory: %w", err)
+	}
 	home := filepath.Join(userHome, ".cli-tools", tool.HomeDir)
 	if err := os.MkdirAll(home, 0o755); err != nil {
 		return 1, err
