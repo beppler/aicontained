@@ -38,3 +38,16 @@ func TestRunChildSharesForegroundGroup(t *testing.T) {
 		t.Errorf("child pgid = %d, launcher pgid = %d — child must share the foreground group", got, syscall.Getpgrp())
 	}
 }
+
+// A non-zero exit is a result, not an error: main would print a bogus
+// "cli-tools: exit status N" line on every failing engine run otherwise.
+func TestRunChildNonZeroExitIsNotAnError(t *testing.T) {
+	engine := filepath.Join(t.TempDir(), "fakeengine")
+	if err := os.WriteFile(engine, []byte("#!/bin/sh\nexit 3\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rc, err := runChild(engine, nil)
+	if err != nil || rc != 3 {
+		t.Fatalf("runChild: rc=%d err=%v, want rc=3 err=nil", rc, err)
+	}
+}
