@@ -70,7 +70,7 @@ func Build(args []string) int {
 		buildArgs = append(buildArgs, "-t", image.tag, dir)
 		if code, err := eng.Run(buildArgs...); err != nil || code != 0 {
 			fmt.Fprintf(os.Stderr, "cli-tools: building %s failed\n", image.tag)
-			return exitish(code, err)
+			return exitCode(code, err)
 		}
 	}
 
@@ -80,7 +80,7 @@ func Build(args []string) int {
 			pruneArgs = append(pruneArgs, "-f")
 		}
 		if code, err := eng.Run(pruneArgs...); err != nil || code != 0 {
-			return exitish(code, err)
+			return exitCode(code, err)
 		}
 	}
 
@@ -143,7 +143,7 @@ func buildList(list []tools.Tool) []imageSpec {
 	return out
 }
 
-func exitish(code int, err error) int {
+func exitCode(code int, err error) int {
 	if err != nil {
 		return 1
 	}

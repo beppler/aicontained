@@ -3,6 +3,7 @@ package buildcmd
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/beppler/cli-tools/internal/images"
@@ -20,37 +21,45 @@ func TestEmbeddedContainers(t *testing.T) {
 }
 
 // install must copy the binary and create per-tool links that argv[0]
-// dispatch relies on. Runs the linux binDir path ($HOME/.local/bin).
+// dispatch relies on. Runs the platform binDir path (Linux: $HOME/.local/bin,
+// Windows: %LOCALAPPDATA%\Programs\bin).
 func TestInstall(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("LOCALAPPDATA", filepath.Join(home, "AppData", "Local"))
 
-	exe := filepath.Join(t.TempDir(), "cli-tools")
-	if err := os.WriteFile(exe, []byte("#!/bin/sh\n"), 0o755); err != nil {
-		t.Fatal(err)
+	want := filepath.Join(home, ".local", "bin")
+	if runtime.GOOS == "windows" {
+		want = filepath.Join(home, "AppData", "Local", "Programs", "bin")
 	}
 
 	dest, err := install(tools.All())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := filepath.Join(home, ".local", "bin"); dest != want {
+	if dest != want {
 		t.Fatalf("dest = %q, want %q", dest, want)
 	}
 
-	bin := filepath.Join(dest, "cli-tools")
+	bin := filepath.Join(dest, binaryName())
 	info, err := os.Stat(bin)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm()&0o100 == 0 {
+	// Windows has no exec bits; os.Stat always reports non-executable.
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0o100 == 0 {
 		t.Error("installed binary is not executable")
 	}
 	for _, tool := range tools.All() {
-		link := filepath.Join(dest, tool.Name)
+		link := filepath.Join(dest, linkName(tool.Name))
 		got, err := os.Readlink(link)
-		if err != nil || got != "cli-tools" {
-			t.Errorf("%s: link to %q, %v (want relative cli-tools)", tool.Name, got, err)
+		if err != nil && runtime.GOOS == "windows" {
+			if sameFile(link, bin) { // hardlink fallback
+				continue
+			}
+		}
+		if err != nil || got != filepath.Base(bin) {
+			t.Errorf("%s: link to %q, %v (want relative %s)", tool.Name, got, err, filepath.Base(bin))
 		}
 	}
 }

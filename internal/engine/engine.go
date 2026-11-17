@@ -44,8 +44,7 @@ func (e *Engine) Run(args ...string) (int, error) {
 	if err == nil {
 		return 0, nil
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		code := exitErr.ProcessState.ExitCode()
 		if code < 0 { // killed by a signal
 			code = 1
