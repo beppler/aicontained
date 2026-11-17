@@ -334,9 +334,10 @@ func copyExecutable(src, dst string) error {
 		os.Remove(tmp)
 		return err
 	}
-	old := fmt.Sprintf("%s.old-%d", dst, os.Getpid())
+	var old string // aside name, used only by the Windows rename-aside below
 	swapped := false
 	if runtime.GOOS == "windows" {
+		old = fmt.Sprintf("%s.old-%d", dst, os.Getpid())
 		if err := os.Rename(dst, old); err == nil {
 			swapped = true
 		} else if !errors.Is(err, fs.ErrNotExist) {
