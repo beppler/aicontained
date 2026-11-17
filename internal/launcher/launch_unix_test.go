@@ -41,7 +41,7 @@ func TestChildProcessGroup(t *testing.T) {
 	if os.Getenv("RUN_CHILD_HELPER") != "1" {
 		t.Skip("only runs as the fake engine child")
 	}
-	if err := os.WriteFile(os.Getenv("OUT"), []byte(fmt.Sprint(syscall.Getpgrp())), 0o644); err != nil {
+	if err := os.WriteFile(os.Getenv("OUT"), fmt.Appendf(nil, "%d", syscall.Getpgrp()), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
