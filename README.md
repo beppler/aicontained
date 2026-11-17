@@ -1,6 +1,6 @@
 # Containerized AI coding harnesses
 
-Run **Claude Code**, **Codex**, **GitHub Copilot**, **Antigravity**, and **OpenCode** in isolated containers — same commands, every OS, no Node.js or Python sprawl on your host. Each tool ships as its own image with its own runtime and its own persistent home directory, and it only ever sees the project directory you launch it from.
+Run **Claude Code**, **Codex**, **GitHub Copilot**, **Antigravity**, **OpenCode**, and **Pi** in isolated containers — same commands, every OS, no Node.js or Python sprawl on your host. Each tool ships as its own image with its own runtime and its own persistent home directory, and it only ever sees the project directory you launch it from.
 
 | Tool | Command | Entrypoint notes |
 | ---- | ------- | --------------- |
@@ -9,6 +9,7 @@ Run **Claude Code**, **Codex**, **GitHub Copilot**, **Antigravity**, and **OpenC
 | GitHub Copilot | `copilot` | |
 | Antigravity | `agy` | |
 | OpenCode | `opencode` | provider-agnostic: ANTHROPIC / OPENAI / GEMINI keys all supported |
+| Pi | `pi` | provider-agnostic like OpenCode |
 
 ## Container engines
 
@@ -41,7 +42,7 @@ No Go on the target machine? Run `scripts/cross-build.sh` anywhere (writes one b
 Same on every OS:
 
 ```bash
-cli-tools install           # copy binary + create all five tool links
+cli-tools install           # copy binary + create all six tool links
 cli-tools install claude agy  # only some tools
 cli-tools build             # build all images (no install)
 cli-tools build claude agy  # only some images
@@ -60,7 +61,7 @@ wsl --update --pre-release
 wsl --shutdown
 ```
 
-Reopen the terminal, then confirm `wslc --version` prints 2.9.3+. After `cli-tools install`, `claude`, `codex`, `copilot`, `agy`, `opencode` work from PowerShell or cmd.exe. Symlink creation there needs Developer Mode (or elevation); without it, `install` fails with a message saying exactly that. `wslc.exe` ships as part of WSL itself and runs each container in its own lightweight Hyper-V VM.
+Reopen the terminal, then confirm `wslc --version` prints 2.9.3+. After `cli-tools install`, `claude`, `codex`, `copilot`, `agy`, `opencode`, `pi` work from PowerShell or cmd.exe. Symlink creation there needs Developer Mode (or elevation); without it, `install` fails with a message saying exactly that. `wslc.exe` ships as part of WSL itself and runs each container in its own lightweight Hyper-V VM.
 
 **macOS.** Apple `container` requires Apple Silicon and macOS 15+ (full support on macOS 26). `cli-tools build` starts the daemon for you; on some setups you may need `container system start` again after a reboot.
 
@@ -83,7 +84,7 @@ Same on every OS — from any project directory:
 
 ```bash
 cd ~/my-project
-claude    # or codex / copilot / agy / opencode
+claude    # or codex / copilot / agy / opencode / pi
 ```
 
 **How mounting works:** the current directory is bind-mounted at `/workspace/<hash-of-host-path>/<folder-name>`. The hash is deliberate — these tools key per-project state (sessions, memory, folder trust) by path, so every project must map to a unique in-container path. Side effect: renaming or moving a project on the host gives it a fresh hash and a fresh session history.
@@ -98,6 +99,7 @@ claude    # or codex / copilot / agy / opencode
 | Codex, Copilot | Device code | browser OAuth can't work: the callback server binds `127.0.0.1` inside the container, reachable from nowhere — no port-forwarding fix is possible |
 | Antigravity (personal accounts) | API key | OAuth unavailable; set `GEMINI_API_KEY` in a `.env` in `antigravity-home` — get one at [Google AI Studio](https://aistudio.google.com/app/apikey) |
 | OpenCode | Any | reads whichever of `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) is set, or `opencode auth login` in-container |
+| Pi | Any | reads whichever of `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` is set, or `/login` in-container |
 
 API keys from your shell are passed through automatically (the binary is a native Windows process, so PowerShell env vars work directly — no WSL-side configuration).
 

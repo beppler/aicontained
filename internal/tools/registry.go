@@ -20,6 +20,11 @@ var all = []Tool{
 	// registry spec in issue #27 lists it.
 	{Name: "opencode", HomeDir: "opencode-home", StateMount: true,
 		EnvKeys: []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENAI_USE_VERTEXAI"}},
+	// Pi is provider-agnostic like opencode; only keys its provider docs read
+	// are passed (Gemini uses GEMINI_API_KEY). GOOGLE_CLOUD_API_KEY (Vertex)
+	// and other providers can be added when needed.
+	{Name: "pi", HomeDir: "pi-home",
+		EnvKeys: []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY"}},
 }
 
 // All returns every known tool.
