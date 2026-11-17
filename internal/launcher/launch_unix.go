@@ -19,7 +19,9 @@ import (
 // container stuck in "Created". Terminal Ctrl+C is delivered by the kernel
 // to the whole foreground group, launcher included, so SIGINT is swallowed
 // here while the engine tears the container down. A SIGTERM aimed only at
-// this process is forwarded so the container is still cleaned up.
+// this process is forwarded so the container is still cleaned up. SIGHUP
+// (closed terminal tab, dropped SSH) is caught too: the default action
+// would kill the launcher before the deferred state save in Run runs.
 func runChild(name string, args []string) (int, error) {
 	cmd := exec.Command(name, args...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
@@ -28,7 +30,7 @@ func runChild(name string, args []string) (int, error) {
 	}
 
 	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer signal.Stop(ch)
 	go func() {
 		for sig := range ch {
