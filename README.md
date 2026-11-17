@@ -178,3 +178,7 @@ Two caveats:
 **Go tools (`gofmt -l` lists every file):** `gofmt` treats CRLF as unformatted, and `core.autocrlf` can't help because the files really are CRLF on disk. Commit a `.gitattributes` with `*.go text eol=lf` (this repo does), then refresh the working tree: `git rm --cached -r -q . && git reset --hard` (commit or stash changes first).
 
 Still seeing phantom diffs? Check with `git diff --ignore-cr-at-eol --stat`; if needed, set the same two values in the repo's `.git/config` and add to the project's `CLAUDE.md`/`AGENTS.md`: "This working tree uses Windows line endings. Never convert or 'fix' line endings." Don't run `dos2unix` — it only moves the phantom changes to the Windows side and breaks `.bat`/`.cmd` files.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
