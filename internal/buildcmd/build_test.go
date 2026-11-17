@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	clitools "github.com/beppler/cli-tools"
+	"github.com/beppler/cli-tools/internal/images"
 	"github.com/beppler/cli-tools/internal/tools"
 )
 
@@ -13,7 +13,7 @@ import (
 // checkout — they must actually be in the binary.
 func TestEmbeddedContainers(t *testing.T) {
 	for _, f := range []string{"containers/base/Dockerfile", "containers/claude/Dockerfile", "containers/opencode/Dockerfile"} {
-		if _, err := clitools.Containers.ReadFile(f); err != nil {
+		if _, err := images.Containers.ReadFile(f); err != nil {
 			t.Errorf("embedded %s: %v", f, err)
 		}
 	}

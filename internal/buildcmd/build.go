@@ -12,8 +12,8 @@ import (
 	"runtime"
 	"strings"
 
-	clitools "github.com/beppler/cli-tools"
 	"github.com/beppler/cli-tools/internal/engine"
+	"github.com/beppler/cli-tools/internal/images"
 	"github.com/beppler/cli-tools/internal/tools"
 )
 
@@ -169,7 +169,7 @@ func writeContainers() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	err = fs.WalkDir(clitools.Containers, "containers", func(p string, d fs.DirEntry, err error) error {
+	err = fs.WalkDir(images.Containers, "containers", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -177,7 +177,7 @@ func writeContainers() (string, error) {
 		if d.IsDir() {
 			return os.MkdirAll(target, 0o755)
 		}
-		data, err := clitools.Containers.ReadFile(p)
+		data, err := images.Containers.ReadFile(p)
 		if err != nil {
 			return err
 		}
