@@ -1,4 +1,4 @@
-# Containerized AI Coding CLIs
+# Containerized AI coding harnesses
 
 Run **Claude Code**, **Codex**, **GitHub Copilot**, **Antigravity**, and **OpenCode** in isolated containers — same commands, every OS, no Node.js or Python sprawl on your host. Each tool ships as its own image with its own runtime and its own persistent home directory, and it only ever sees the project directory you launch it from.
 
