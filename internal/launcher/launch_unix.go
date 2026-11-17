@@ -3,6 +3,7 @@
 package launcher
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -41,7 +42,13 @@ func runChild(name string, args []string) (int, error) {
 	}()
 
 	err := cmd.Wait()
-	return exitCode(cmd.ProcessState), err
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		return exitCode(cmd.ProcessState), err
+	}
+	// The child started and ran to completion: its exit code is the
+	// result, not an error (Go reports every non-zero exit as ExitError).
+	return exitCode(cmd.ProcessState), nil
 }
 
 func exitCode(ps *os.ProcessState) int {
