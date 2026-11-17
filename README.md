@@ -29,10 +29,10 @@ Images are stored **per engine and per machine** — you must build on each mach
 Single Go binary; all the tool commands (`claude`, `codex`, ...) are links to it:
 
 ```bash
-go install github.com/beppler/cli-tools/cmd/cli-tools@latest
+go run github.com/beppler/cli-tools/cmd/cli-tools@latest install
 ```
 
-Or from a checkout of this repo: `go build -o "$HOME/.local/bin/cli-tools" ./cmd/cli-tools`.
+Or from a checkout of this repo: `go run ./cmd/cli-tools install`.
 
 No Go on the target machine? Run `scripts/cross-build.sh` anywhere (writes one binary per platform to `dist/`), copy the matching `dist/cli-tools-<os>-<arch>` over, and use it as `cli-tools`.
 
