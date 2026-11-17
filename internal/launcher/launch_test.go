@@ -121,7 +121,10 @@ func TestAssemble(t *testing.T) {
 			if !ok {
 				t.Fatalf("unknown tool %q", c.tool)
 			}
-			got := assemble(tool, c.goos, host, work, home+"/"+c.homeSub, c.stateDir, c.ctrName, []string{"--version"})
+			got, err := assemble(tool, c.goos, host, work, home+"/"+c.homeSub, c.stateDir, c.ctrName, []string{"--version"})
+			if err != nil {
+				t.Fatal(err)
+			}
 			if len(got) != len(c.want) {
 				t.Fatalf("got:\n  %q\nwant:\n  %q", got, c.want)
 			}
@@ -132,5 +135,44 @@ func TestAssemble(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// A colon in the host path breaks `-v` (parsed as the mount-options
+// separator); the fallback to --mount, the Windows exemption, and the
+// unsolvable colon+comma combination are pinned here (issue #52).
+func TestAssembleMountFallback(t *testing.T) {
+	tool, ok := tools.Lookup("claude")
+	if !ok {
+		t.Fatal("unknown tool claude")
+	}
+	const work = "/workspace/HASH/proj"
+
+	// Linux: --mount replaces -v.
+	got, err := assemble(tool, "linux", "/home/u/proj:v2", work, "/home/u/.cli-tools/claude-home", "", "", []string{"--version"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"--mount", "type=bind,src=/home/u/proj:v2,dst=" + work, "-w", work}
+	for i, w := range want {
+		if got[3+i] != w {
+			t.Errorf("arg %d: got %q, want %q\nfull got: %q", 3+i, got[3+i], w, got)
+		}
+	}
+
+	// Windows keeps -v even with a colon (wslc handles drive letters).
+	got, err = assemble(tool, "windows", "/home/u/proj:v2", work, "/home/u/.cli-tools/claude-home", "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[3] != "-v" || got[4] != "/home/u/proj:v2:"+work {
+		t.Errorf("windows colon path: got %q, want plain -v mount", got[3:5])
+	}
+
+	// Colon + comma: not mountable on any non-Windows engine; must error
+	// clearly instead of failing inside podman.
+	_, err = assemble(tool, "linux", "/home/u/proj:v2,final", work, "/home/u/.cli-tools/claude-home", "", "", nil)
+	if err == nil {
+		t.Fatal("want an error for a path containing both ':' and ','")
 	}
 }
