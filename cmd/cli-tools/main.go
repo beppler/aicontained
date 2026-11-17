@@ -84,7 +84,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, `Runs AI coding CLIs in isolated containers.
 
 Usage:
-  claude|codex|copilot|agy|opencode [args...]
+  claude|codex|copilot|agy|opencode|pi [args...]
   cli-tools <tool> [args...]
   cli-tools build [tool...] [--prune-images] [--no-cache]
   cli-tools install [tool...]

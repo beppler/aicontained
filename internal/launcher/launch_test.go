@@ -121,6 +121,24 @@ func TestAssemble(t *testing.T) {
 				"cli-tools-opencode", "--version",
 			},
 		},
+		{
+			// pi passes only the keys its provider docs read and, like every
+			// tool but opencode, has no per-run state dir mount.
+			name: "pi/linux", tool: "pi", goos: "linux", homeSub: "pi-home",
+			want: []string{
+				"run", "--rm", "-it",
+				"-v", host + ":" + work,
+				"-v", home + "/pi-home:/root",
+				"-w", work,
+				"-e", "TERM", "-e", "COLORTERM",
+				"-e", "ANTHROPIC_API_KEY", "-e", "OPENAI_API_KEY",
+				"-e", "GEMINI_API_KEY",
+				"--security-opt", "no-new-privileges",
+				"--cap-drop=ALL",
+				"--cap-add=CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETUID,SETGID",
+				"cli-tools-pi", "--version",
+			},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
