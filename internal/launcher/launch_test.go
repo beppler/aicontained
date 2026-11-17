@@ -22,8 +22,9 @@ func TestAssemble(t *testing.T) {
 			name: "claude/darwin", tool: "claude", goos: "darwin", homeSub: "claude-home",
 			want: []string{
 				"run", "--rm", "-it", "--progress", "none",
-				"-v", host + ":" + work, "-w", work,
+				"-v", host + ":" + work,
 				"-v", home + "/claude-home:/root",
+				"-w", work,
 				"-e", "TERM", "-e", "COLORTERM",
 				"-e", "ANTHROPIC_API_KEY",
 				"cli-tools-claude", "--version",
@@ -33,8 +34,9 @@ func TestAssemble(t *testing.T) {
 			name: "claude/linux", tool: "claude", goos: "linux", homeSub: "claude-home",
 			want: []string{
 				"run", "--rm", "-it",
-				"-v", host + ":" + work, "-w", work,
+				"-v", host + ":" + work,
 				"-v", home + "/claude-home:/root",
+				"-w", work,
 				"-e", "TERM", "-e", "COLORTERM",
 				"-e", "ANTHROPIC_API_KEY",
 				"--security-opt", "no-new-privileges",
@@ -47,8 +49,9 @@ func TestAssemble(t *testing.T) {
 			name: "claude/windows", tool: "claude", goos: "windows", ctrName: "claude_cli_42", homeSub: "claude-home",
 			want: []string{
 				"run", "--rm", "-it",
-				"-v", host + ":" + work, "-w", work,
+				"-v", host + ":" + work,
 				"-v", home + "/claude-home:/root",
+				"-w", work,
 				"-e", "TERM=xterm-256color", "-e", "COLORTERM=truecolor",
 				"-e", "GIT_CONFIG_COUNT=2",
 				"-e", "GIT_CONFIG_KEY_0=core.autocrlf", "-e", "GIT_CONFIG_VALUE_0=true",
@@ -62,8 +65,9 @@ func TestAssemble(t *testing.T) {
 			name: "codex/linux", tool: "codex", goos: "linux", homeSub: "codex-home",
 			want: []string{
 				"run", "--rm", "-it",
-				"-v", host + ":" + work, "-w", work,
+				"-v", host + ":" + work,
 				"-v", home + "/codex-home:/root",
+				"-w", work,
 				"-e", "TERM", "-e", "COLORTERM",
 				"-e", "OPENAI_API_KEY",
 				"--security-opt", "no-new-privileges",
@@ -76,8 +80,9 @@ func TestAssemble(t *testing.T) {
 			name: "copilot/darwin", tool: "copilot", goos: "darwin", homeSub: "copilot-home",
 			want: []string{
 				"run", "--rm", "-it", "--progress", "none",
-				"-v", host + ":" + work, "-w", work,
+				"-v", host + ":" + work,
 				"-v", home + "/copilot-home:/root",
+				"-w", work,
 				"-e", "TERM", "-e", "COLORTERM",
 				"cli-tools-copilot", "--version",
 			},
@@ -86,8 +91,9 @@ func TestAssemble(t *testing.T) {
 			name: "agy/windows", tool: "agy", goos: "windows", ctrName: "agy_cli_7", homeSub: "antigravity-home",
 			want: []string{
 				"run", "--rm", "-it",
-				"-v", host + ":" + work, "-w", work,
+				"-v", host + ":" + work,
 				"-v", home + "/antigravity-home:/root",
+				"-w", work,
 				"-e", "TERM=xterm-256color", "-e", "COLORTERM=truecolor",
 				"-e", "GIT_CONFIG_COUNT=2",
 				"-e", "GIT_CONFIG_KEY_0=core.autocrlf", "-e", "GIT_CONFIG_VALUE_0=true",
@@ -102,9 +108,10 @@ func TestAssemble(t *testing.T) {
 			name: "opencode/linux", tool: "opencode", goos: "linux", stateDir: home + "/opencode-home/.local/state/opencode-1234", homeSub: "opencode-home",
 			want: []string{
 				"run", "--rm", "-it",
-				"-v", host + ":" + work, "-w", work,
+				"-v", host + ":" + work,
 				"-v", home + "/opencode-home:/root",
 				"-v", home + "/opencode-home/.local/state/opencode-1234:/root/.local/state/opencode",
+				"-w", work,
 				"-e", "TERM", "-e", "COLORTERM",
 				"-e", "ANTHROPIC_API_KEY", "-e", "OPENAI_API_KEY",
 				"-e", "GEMINI_API_KEY", "-e", "GOOGLE_API_KEY", "-e", "GOOGLE_GENAI_USE_VERTEXAI",
@@ -153,7 +160,7 @@ func TestAssembleMountFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"--mount", "type=bind,src=/home/u/proj:v2,dst=" + work, "-w", work}
+	want := []string{"--mount", "type=bind,src=/home/u/proj:v2,dst=" + work, "-v", "/home/u/.cli-tools/claude-home:/root", "-w", work}
 	for i, w := range want {
 		if got[3+i] != w {
 			t.Errorf("arg %d: got %q, want %q\nfull got: %q", 3+i, got[3+i], w, got)

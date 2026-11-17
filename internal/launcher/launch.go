@@ -69,25 +69,19 @@ func assemble(tool tools.Tool, goos, hostDir, workDir, homeDir, stateDir, contai
 		out = append(out, "--progress", "none")
 	}
 
-	projMount, err := mountFlag(goos, hostDir, workDir)
-	if err != nil {
-		return nil, err
-	}
-	homeMount, err := mountFlag(goos, homeDir, "/root")
-	if err != nil {
-		return nil, err
-	}
-	out = append(out, projMount...)
-	out = append(out, "-w", workDir)
-	out = append(out, homeMount...)
+	mounts := [][2]string{{hostDir, workDir}, {homeDir, "/root"}}
 	if stateDir != "" {
 		// opencode's per-run state dir; the launcher saves it back on exit.
-		stateMount, err := mountFlag(goos, stateDir, "/root/.local/state/opencode")
+		mounts = append(mounts, [2]string{stateDir, "/root/.local/state/opencode"})
+	}
+	for _, m := range mounts {
+		mount, err := mountFlag(goos, m[0], m[1])
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, stateMount...)
+		out = append(out, mount...)
 	}
+	out = append(out, "-w", workDir)
 
 	// The engine forwards the host's own value for a bare -e KEY and skips
 	// unset ones, so secret values never appear in the command line.
