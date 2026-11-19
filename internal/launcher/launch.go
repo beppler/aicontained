@@ -4,7 +4,6 @@ package launcher
 
 import (
 	"fmt"
-	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -36,11 +35,10 @@ func Run(tool tools.Tool, args []string) (int, error) {
 		return 1, err
 	}
 
-	// wslc requires a unique container name; the other engines don't care.
-	name := ""
-	if runtime.GOOS == "windows" {
-		name = fmt.Sprintf("%s_cli_%d", tool.Name, rand.IntN(1<<31))
-	}
+	// wslc requires a unique container name; the others just benefit from an
+	// identifiable one. The pid is unique among live processes; a recycled pid
+	// can hit a stale crashed container — rerun to recover.
+	name := fmt.Sprintf("%s_cli_%d", tool.Name, os.Getpid())
 	stateDir := ""
 	if tool.StateMount {
 		run, err := opencode.Seed(home)

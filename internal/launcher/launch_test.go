@@ -19,7 +19,7 @@ func TestAssemble(t *testing.T) {
 		want     []string
 	}{
 		{
-			name: "claude/darwin", tool: "claude", goos: "darwin", homeSub: "claude-home",
+			name: "claude/darwin", tool: "claude", goos: "darwin", ctrName: "claude_cli_42", homeSub: "claude-home",
 			want: []string{
 				"run", "--rm", "-it", "--progress", "none",
 				"-v", host + ":" + work,
@@ -27,11 +27,12 @@ func TestAssemble(t *testing.T) {
 				"-w", work,
 				"-e", "TERM", "-e", "COLORTERM",
 				"-e", "ANTHROPIC_API_KEY",
+				"--name", "claude_cli_42",
 				"cli-tools-claude", "--version",
 			},
 		},
 		{
-			name: "claude/linux", tool: "claude", goos: "linux", homeSub: "claude-home",
+			name: "claude/linux", tool: "claude", goos: "linux", ctrName: "claude_cli_42", homeSub: "claude-home",
 			want: []string{
 				"run", "--rm", "-it",
 				"-v", host + ":" + work,
@@ -42,6 +43,7 @@ func TestAssemble(t *testing.T) {
 				"--security-opt", "no-new-privileges",
 				"--cap-drop=ALL",
 				"--cap-add=CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETUID,SETGID",
+				"--name", "claude_cli_42",
 				"cli-tools-claude", "--version",
 			},
 		},
@@ -62,7 +64,7 @@ func TestAssemble(t *testing.T) {
 			},
 		},
 		{
-			name: "codex/linux", tool: "codex", goos: "linux", homeSub: "codex-home",
+			name: "codex/linux", tool: "codex", goos: "linux", ctrName: "codex_cli_42", homeSub: "codex-home",
 			want: []string{
 				"run", "--rm", "-it",
 				"-v", host + ":" + work,
@@ -73,17 +75,19 @@ func TestAssemble(t *testing.T) {
 				"--security-opt", "no-new-privileges",
 				"--cap-drop=ALL",
 				"--cap-add=CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETUID,SETGID",
+				"--name", "codex_cli_42",
 				"cli-tools-codex", "--version",
 			},
 		},
 		{
-			name: "copilot/darwin", tool: "copilot", goos: "darwin", homeSub: "copilot-home",
+			name: "copilot/darwin", tool: "copilot", goos: "darwin", ctrName: "copilot_cli_42", homeSub: "copilot-home",
 			want: []string{
 				"run", "--rm", "-it", "--progress", "none",
 				"-v", host + ":" + work,
 				"-v", home + "/copilot-home:/root",
 				"-w", work,
 				"-e", "TERM", "-e", "COLORTERM",
+				"--name", "copilot_cli_42",
 				"cli-tools-copilot", "--version",
 			},
 		},
@@ -105,7 +109,7 @@ func TestAssemble(t *testing.T) {
 		},
 		{
 			// opencode is the only tool with the per-run state dir mount.
-			name: "opencode/linux", tool: "opencode", goos: "linux", stateDir: home + "/opencode-home/.local/state/opencode-1234", homeSub: "opencode-home",
+			name: "opencode/linux", tool: "opencode", goos: "linux", ctrName: "opencode_cli_42", stateDir: home + "/opencode-home/.local/state/opencode-1234", homeSub: "opencode-home",
 			want: []string{
 				"run", "--rm", "-it",
 				"-v", host + ":" + work,
@@ -118,13 +122,14 @@ func TestAssemble(t *testing.T) {
 				"--security-opt", "no-new-privileges",
 				"--cap-drop=ALL",
 				"--cap-add=CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETUID,SETGID",
+				"--name", "opencode_cli_42",
 				"cli-tools-opencode", "--version",
 			},
 		},
 		{
 			// pi passes only the keys its provider docs read and, like every
 			// tool but opencode, has no per-run state dir mount.
-			name: "pi/linux", tool: "pi", goos: "linux", homeSub: "pi-home",
+			name: "pi/linux", tool: "pi", goos: "linux", ctrName: "pi_cli_42", homeSub: "pi-home",
 			want: []string{
 				"run", "--rm", "-it",
 				"-v", host + ":" + work,
@@ -136,6 +141,7 @@ func TestAssemble(t *testing.T) {
 				"--security-opt", "no-new-privileges",
 				"--cap-drop=ALL",
 				"--cap-add=CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETUID,SETGID",
+				"--name", "pi_cli_42",
 				"cli-tools-pi", "--version",
 			},
 		},
