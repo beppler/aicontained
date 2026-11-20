@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/beppler/cli-tools/internal/images"
-	"github.com/beppler/cli-tools/internal/tools"
+	"github.com/beppler/aicontained/internal/images"
+	"github.com/beppler/aicontained/internal/tools"
 )
 
 // The binary builds images from the embedded definitions, not a repo

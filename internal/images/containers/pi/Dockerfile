@@ -1,4 +1,4 @@
-FROM cli-tools-base
+FROM aicontained-base
 
 # Install with a temporary HOME so the npm cache doesn't land in /root (the
 # launcher bind-mounts a host dir over it), then link the launcher script to

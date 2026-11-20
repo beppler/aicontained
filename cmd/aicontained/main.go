@@ -1,4 +1,4 @@
-// Command cli-tools runs containerized AI coding CLIs, Busybox-style: one
+// Command aicontained runs containerized AI coding CLIs, Busybox-style: one
 // binary, one command per tool via argv[0] (symlinked as claude, codex, ...).
 package main
 
@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/beppler/cli-tools/internal/buildcmd"
-	"github.com/beppler/cli-tools/internal/launcher"
-	"github.com/beppler/cli-tools/internal/tools"
+	"github.com/beppler/aicontained/internal/buildcmd"
+	"github.com/beppler/aicontained/internal/launcher"
+	"github.com/beppler/aicontained/internal/tools"
 )
 
 func main() {
@@ -40,9 +40,9 @@ func main() {
 }
 
 // toolFor maps argv0 to a known tool command, or reports false when the
-// invocation should be handled as the cli-tools command itself. Known tool
+// invocation should be handled as the aicontained command itself. Known tool
 // names win over the binary name, so a cross-built copy
-// (cli-tools-linux-amd64) still reaches the cli-tools subcommands.
+// (aicontained-linux-amd64) still reaches the aicontained subcommands.
 func toolFor(argv0 string) (tools.Tool, bool) {
 	return tools.Lookup(toolName(argv0))
 }
@@ -57,7 +57,7 @@ func toolName(argv0 string) string {
 func runTool(tool tools.Tool, args []string) {
 	rc, err := launcher.Run(tool, args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "cli-tools:", err)
+		fmt.Fprintln(os.Stderr, "aicontained:", err)
 	}
 	os.Exit(rc)
 }
@@ -85,9 +85,9 @@ func usage() {
 
 Usage:
   claude|codex|copilot|agy|opencode|pi [args...]
-  cli-tools <tool> [args...]
-  cli-tools build [tool...] [--prune-images] [--no-cache]
-  cli-tools install [tool...]
-  cli-tools --list
+  aicontained <tool> [args...]
+  aicontained build [tool...] [--prune-images] [--no-cache]
+  aicontained install [tool...]
+  aicontained --list
 `)
 }

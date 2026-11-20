@@ -7,7 +7,7 @@ import (
 )
 
 // A non-zero exit is a result, not an error: main would print a bogus
-// "cli-tools: exit status N" line on every failing engine run otherwise.
+// "aicontained: exit status N" line on every failing engine run otherwise.
 // Runs the engine as `cmd /c exit 3` — the Windows twin of the unix test.
 func TestRunChildCmdExitIsNotAnError(t *testing.T) {
 	rc, err := runChild("cmd", []string{"/c", "exit", "3"})

@@ -9,10 +9,10 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/beppler/cli-tools/internal/engine"
-	"github.com/beppler/cli-tools/internal/opencode"
-	"github.com/beppler/cli-tools/internal/tools"
-	"github.com/beppler/cli-tools/internal/workdir"
+	"github.com/beppler/aicontained/internal/engine"
+	"github.com/beppler/aicontained/internal/opencode"
+	"github.com/beppler/aicontained/internal/tools"
+	"github.com/beppler/aicontained/internal/workdir"
 )
 
 // Run detects the engine, prepares the tool's host directories, and runs the
@@ -30,7 +30,7 @@ func Run(tool tools.Tool, args []string) (int, error) {
 	if err != nil {
 		return 1, fmt.Errorf("cannot read current directory: %w", err)
 	}
-	home := filepath.Join(userHome, ".cli-tools", tool.HomeDir)
+	home := filepath.Join(userHome, ".aicontained", tool.HomeDir)
 	if err := os.MkdirAll(home, 0o755); err != nil {
 		return 1, err
 	}
@@ -47,7 +47,7 @@ func Run(tool tools.Tool, args []string) (int, error) {
 		}
 		defer func() {
 			if err := run.Save(); err != nil {
-				fmt.Fprintln(os.Stderr, "cli-tools: warning: saving opencode state:", err)
+				fmt.Fprintln(os.Stderr, "aicontained: warning: saving opencode state:", err)
 			}
 		}()
 		stateDir = run.Dir()

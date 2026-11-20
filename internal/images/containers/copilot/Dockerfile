@@ -1,4 +1,4 @@
-FROM cli-tools-base
+FROM aicontained-base
 
 RUN curl -fsSL https://gh.io/copilot-install | bash
 

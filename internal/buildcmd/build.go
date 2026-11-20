@@ -1,4 +1,4 @@
-// Package buildcmd implements the `cli-tools build` subcommand: build the
+// Package buildcmd implements the `aicontained build` subcommand: build the
 // container images, then install the binary with per-tool links.
 package buildcmd
 
@@ -13,12 +13,12 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/beppler/cli-tools/internal/engine"
-	"github.com/beppler/cli-tools/internal/images"
-	"github.com/beppler/cli-tools/internal/tools"
+	"github.com/beppler/aicontained/internal/engine"
+	"github.com/beppler/aicontained/internal/images"
+	"github.com/beppler/aicontained/internal/tools"
 )
 
-// Build runs `cli-tools build [tool...] [--prune-images] [--no-cache]` and
+// Build runs `aicontained build [tool...] [--prune-images] [--no-cache]` and
 // returns the process exit code. It only builds images; use Install to put
 // the binary and per-tool links on disk.
 func Build(args []string) int {
@@ -31,7 +31,7 @@ func Build(args []string) int {
 		case "--no-cache":
 			noCache = true
 		case "-h", "--help":
-			fmt.Println("usage: cli-tools build [tool...] [--prune-images] [--no-cache]")
+			fmt.Println("usage: aicontained build [tool...] [--prune-images] [--no-cache]")
 			return 0
 		default:
 			names = append(names, a)
@@ -57,7 +57,7 @@ func Build(args []string) int {
 	}
 	root, err := writeContainers()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "cli-tools: extracting image definitions:", err)
+		fmt.Fprintln(os.Stderr, "aicontained: extracting image definitions:", err)
 		return 1
 	}
 	defer os.RemoveAll(root)
@@ -70,7 +70,7 @@ func Build(args []string) int {
 		}
 		buildArgs = append(buildArgs, "-t", image.tag, dir)
 		if code, err := eng.Run(buildArgs...); err != nil || code != 0 {
-			fmt.Fprintf(os.Stderr, "cli-tools: building %s failed\n", image.tag)
+			fmt.Fprintf(os.Stderr, "aicontained: building %s failed\n", image.tag)
 			return exitCode(code, err)
 		}
 	}
@@ -89,7 +89,7 @@ func Build(args []string) int {
 	return 0
 }
 
-// Install runs `cli-tools install [tool...]` and returns the process exit
+// Install runs `aicontained install [tool...]` and returns the process exit
 // code. It copies the running binary to the user's private bin dir and
 // creates one link per tool, so argv[0] dispatch picks the right tool.
 func Install(args []string) int {
@@ -97,7 +97,7 @@ func Install(args []string) int {
 	for _, a := range args {
 		switch a {
 		case "-h", "--help":
-			fmt.Println("usage: cli-tools install [tool...]")
+			fmt.Println("usage: aicontained install [tool...]")
 			return 0
 		default:
 			names = append(names, a)
@@ -109,7 +109,7 @@ func Install(args []string) int {
 	}
 	dest, err := install(list)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "cli-tools: install:", err)
+		fmt.Fprintln(os.Stderr, "aicontained: install:", err)
 		return 1
 	}
 	fmt.Printf("Done. Make sure %s is on your PATH, then just run: %s\n", dest, toolNames(list))
@@ -137,7 +137,7 @@ func resolveTools(names []string) ([]tools.Tool, int) {
 type imageSpec struct{ tag, dir string }
 
 func buildList(list []tools.Tool) []imageSpec {
-	out := []imageSpec{{"cli-tools-base", "base"}}
+	out := []imageSpec{{"aicontained-base", "base"}}
 	for _, t := range list {
 		out = append(out, imageSpec{t.Image(), t.Name})
 	}
@@ -166,7 +166,7 @@ func ensureRosetta() error {
 
 // writeContainers extracts the embedded image definitions to a temp dir.
 func writeContainers() (string, error) {
-	root, err := os.MkdirTemp("", "cli-tools-containers-")
+	root, err := os.MkdirTemp("", "aicontained-containers-")
 	if err != nil {
 		return "", err
 	}
@@ -219,9 +219,9 @@ func install(list []tools.Tool) (string, error) {
 
 func binaryName() string {
 	if runtime.GOOS == "windows" {
-		return "cli-tools.exe"
+		return "aicontained.exe"
 	}
-	return "cli-tools"
+	return "aicontained"
 }
 
 func linkName(name string) string {

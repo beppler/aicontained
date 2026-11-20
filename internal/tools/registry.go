@@ -4,8 +4,8 @@ package tools
 
 // Tool describes one containerized CLI.
 type Tool struct {
-	Name       string   // command name; image is cli-tools-<name>
-	HomeDir    string   // persistent home dir under ~/.cli-tools
+	Name       string   // command name; image is aicontained-<name>
+	HomeDir    string   // persistent home dir under ~/.aicontained
 	EnvKeys    []string // extra env keys passed through from the host
 	StateMount bool     // mount a per-run state dir (opencode only)
 }
@@ -41,4 +41,4 @@ func Lookup(name string) (Tool, bool) {
 }
 
 // Image is the container image name for the tool.
-func (t Tool) Image() string { return "cli-tools-" + t.Name }
+func (t Tool) Image() string { return "aicontained-" + t.Name }

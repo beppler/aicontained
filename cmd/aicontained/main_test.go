@@ -12,8 +12,8 @@ func TestToolName(t *testing.T) {
 		{"CLAUDE", "claude"},
 		{"CLAUDE.EXE", "claude"},
 		{"/usr/local/bin/codex", "codex"},
-		{"cli-tools", "cli-tools"},
-		{"cli-tools-linux-amd64", "cli-tools-linux-amd64"},
+		{"aicontained", "aicontained"},
+		{"aicontained-linux-amd64", "aicontained-linux-amd64"},
 	} {
 		if got := toolName(tt.argv0); got != tt.want {
 			t.Errorf("toolName(%q) = %q, want %q", tt.argv0, got, tt.want)
@@ -33,9 +33,9 @@ func TestToolFor(t *testing.T) {
 		{"CLAUDE.EXE", "claude", true},
 		{"/usr/local/bin/codex", "codex", true},
 		{"agy", "agy", true},
-		{"cli-tools", "", false},
-		{"cli-tools-linux-amd64", "", false},
-		{"/opt/cli-tools-darwin-arm64", "", false},
+		{"aicontained", "", false},
+		{"aicontained-linux-amd64", "", false},
+		{"/opt/aicontained-darwin-arm64", "", false},
 	} {
 		tool, ok := toolFor(tt.argv0)
 		if ok != tt.ok || tool.Name != tt.want {

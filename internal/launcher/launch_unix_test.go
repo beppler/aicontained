@@ -49,7 +49,7 @@ func TestChildProcessGroup(t *testing.T) {
 }
 
 // A non-zero exit is a result, not an error: main would print a bogus
-// "cli-tools: exit status N" line on every failing engine run otherwise.
+// "aicontained: exit status N" line on every failing engine run otherwise.
 func TestRunChildNonZeroExitIsNotAnError(t *testing.T) {
 	engine := filepath.Join(t.TempDir(), "fakeengine")
 	if err := os.WriteFile(engine, []byte("#!/bin/sh\nexit 3\n"), 0o755); err != nil {
