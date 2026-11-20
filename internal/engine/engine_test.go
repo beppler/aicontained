@@ -13,7 +13,7 @@ func TestDetect(t *testing.T) {
 	if e, err := detect("darwin", missing); err != nil || e.Name != "container" {
 		t.Errorf("darwin: got %v, %v", e, err)
 	}
-	if e, err := detect("windows", missing); err != nil || e.Name != "container" {
+	if e, err := detect("windows", missing); err != nil || e.Name != "wslc" {
 		t.Errorf("windows: got %v, %v", e, err)
 	}
 	if e, err := detect("linux", found); err != nil || e.Name != "podman" {
