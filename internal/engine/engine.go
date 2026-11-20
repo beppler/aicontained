@@ -9,22 +9,23 @@ import (
 	"runtime"
 )
 
-// Engine is a container engine CLI (Apple `container`, Podman, wslc's
-// `container`).
+// Engine is a container engine CLI (Apple `container`, Podman, `wslc`).
 type Engine struct {
 	Name string // command name
 }
 
 // Detect finds the engine for the current OS: Apple `container` on macOS,
-// Podman on Linux, wslc's `container` on Windows.
+// Podman on Linux, `wslc` on Windows.
 func Detect() (*Engine, error) {
 	return detect(runtime.GOOS, exec.LookPath)
 }
 
 func detect(goos string, lookPath func(string) (string, error)) (*Engine, error) {
 	switch goos {
-	case "darwin", "windows":
+	case "darwin":
 		return &Engine{Name: "container"}, nil
+	case "windows":
+		return &Engine{Name: "wslc"}, nil
 	case "linux":
 		if _, err := lookPath("podman"); err == nil {
 			return &Engine{Name: "podman"}, nil
