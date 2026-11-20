@@ -1,4 +1,4 @@
-# Cross-compiles the cli-tools binary for every supported platform.
+# Cross-compiles the aicontained binary for every supported platform.
 # Pure Go cross-compilation (CGO disabled) — no platform toolchains needed.
 # Output lands in dist/, gitignored.
 # Windows equivalent of cross-build.sh.
@@ -8,12 +8,12 @@ New-Item -ItemType Directory -Force dist | Out-Null
 
 foreach ($platform in 'windows/amd64','linux/amd64','linux/arm64','darwin/amd64','darwin/arm64') {
     $os, $arch = $platform -split '/'
-    $out = "dist/cli-tools-$os-$arch"
+    $out = "dist/aicontained-$os-$arch"
     if ($os -eq 'windows') { $out += '.exe' }
     $env:CGO_ENABLED = '0'
     $env:GOOS = $os
     $env:GOARCH = $arch
-    go build -o $out ./cmd/cli-tools
+    go build -o $out ./cmd/aicontained
     if ($LASTEXITCODE -ne 0) { throw "go build failed for $platform" }
 }
 

@@ -1,4 +1,4 @@
-FROM cli-tools-base
+FROM aicontained-base
 
 RUN curl -fsSL https://antigravity.google/cli/install.sh | bash -s -- --dir /usr/local/bin
 

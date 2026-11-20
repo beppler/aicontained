@@ -3,12 +3,12 @@ package launcher
 import (
 	"testing"
 
-	"github.com/beppler/cli-tools/internal/tools"
+	"github.com/beppler/aicontained/internal/tools"
 )
 
 // Golden test pinning the exact engine flags per platform.
 func TestAssemble(t *testing.T) {
-	host, work, home := "/home/u/proj", "/workspace/HASH/proj", "/home/u/.cli-tools"
+	host, work, home := "/home/u/proj", "/workspace/HASH/proj", "/home/u/.aicontained"
 	cases := []struct {
 		name     string
 		tool     string
@@ -28,7 +28,7 @@ func TestAssemble(t *testing.T) {
 				"-e", "TERM", "-e", "COLORTERM",
 				"-e", "ANTHROPIC_API_KEY",
 				"--name", "claude_cli_42",
-				"cli-tools-claude", "--version",
+				"aicontained-claude", "--version",
 			},
 		},
 		{
@@ -44,7 +44,7 @@ func TestAssemble(t *testing.T) {
 				"--cap-drop=ALL",
 				"--cap-add=CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETUID,SETGID",
 				"--name", "claude_cli_42",
-				"cli-tools-claude", "--version",
+				"aicontained-claude", "--version",
 			},
 		},
 		{
@@ -60,7 +60,7 @@ func TestAssemble(t *testing.T) {
 				"-e", "GIT_CONFIG_KEY_1=core.filemode", "-e", "GIT_CONFIG_VALUE_1=false",
 				"-e", "ANTHROPIC_API_KEY",
 				"--name", "claude_cli_42",
-				"cli-tools-claude", "--version",
+				"aicontained-claude", "--version",
 			},
 		},
 		{
@@ -76,7 +76,7 @@ func TestAssemble(t *testing.T) {
 				"--cap-drop=ALL",
 				"--cap-add=CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETUID,SETGID",
 				"--name", "codex_cli_42",
-				"cli-tools-codex", "--version",
+				"aicontained-codex", "--version",
 			},
 		},
 		{
@@ -88,7 +88,7 @@ func TestAssemble(t *testing.T) {
 				"-w", work,
 				"-e", "TERM", "-e", "COLORTERM",
 				"--name", "copilot_cli_42",
-				"cli-tools-copilot", "--version",
+				"aicontained-copilot", "--version",
 			},
 		},
 		{
@@ -104,7 +104,7 @@ func TestAssemble(t *testing.T) {
 				"-e", "GIT_CONFIG_KEY_1=core.filemode", "-e", "GIT_CONFIG_VALUE_1=false",
 				"-e", "GEMINI_API_KEY", "-e", "GOOGLE_API_KEY", "-e", "GOOGLE_GENAI_USE_VERTEXAI",
 				"--name", "agy_cli_7",
-				"cli-tools-agy", "--version",
+				"aicontained-agy", "--version",
 			},
 		},
 		{
@@ -123,7 +123,7 @@ func TestAssemble(t *testing.T) {
 				"--cap-drop=ALL",
 				"--cap-add=CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETUID,SETGID",
 				"--name", "opencode_cli_42",
-				"cli-tools-opencode", "--version",
+				"aicontained-opencode", "--version",
 			},
 		},
 		{
@@ -142,7 +142,7 @@ func TestAssemble(t *testing.T) {
 				"--cap-drop=ALL",
 				"--cap-add=CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETUID,SETGID",
 				"--name", "pi_cli_42",
-				"cli-tools-pi", "--version",
+				"aicontained-pi", "--version",
 			},
 		},
 	}
@@ -180,11 +180,11 @@ func TestAssembleMountFallback(t *testing.T) {
 	const work = "/workspace/HASH/proj"
 
 	// Linux: --mount replaces -v.
-	got, err := assemble(tool, "linux", "/home/u/proj:v2", work, "/home/u/.cli-tools/claude-home", "", "", []string{"--version"})
+	got, err := assemble(tool, "linux", "/home/u/proj:v2", work, "/home/u/.aicontained/claude-home", "", "", []string{"--version"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"--mount", "type=bind,src=/home/u/proj:v2,dst=" + work, "-v", "/home/u/.cli-tools/claude-home:/root", "-w", work}
+	want := []string{"--mount", "type=bind,src=/home/u/proj:v2,dst=" + work, "-v", "/home/u/.aicontained/claude-home:/root", "-w", work}
 	for i, w := range want {
 		if got[3+i] != w {
 			t.Errorf("arg %d: got %q, want %q\nfull got: %q", 3+i, got[3+i], w, got)
@@ -192,7 +192,7 @@ func TestAssembleMountFallback(t *testing.T) {
 	}
 
 	// Windows keeps -v even with a colon (wslc handles drive letters).
-	got, err = assemble(tool, "windows", "/home/u/proj:v2", work, "/home/u/.cli-tools/claude-home", "", "", nil)
+	got, err = assemble(tool, "windows", "/home/u/proj:v2", work, "/home/u/.aicontained/claude-home", "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func TestAssembleMountFallback(t *testing.T) {
 
 	// Colon + comma: not mountable on any non-Windows engine; must error
 	// clearly instead of failing inside podman.
-	_, err = assemble(tool, "linux", "/home/u/proj:v2,final", work, "/home/u/.cli-tools/claude-home", "", "", nil)
+	_, err = assemble(tool, "linux", "/home/u/proj:v2,final", work, "/home/u/.aicontained/claude-home", "", "", nil)
 	if err == nil {
 		t.Fatal("want an error for a path containing both ':' and ','")
 	}

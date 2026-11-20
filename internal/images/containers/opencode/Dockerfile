@@ -1,4 +1,4 @@
-FROM cli-tools-base
+FROM aicontained-base
 
 # Install with a temporary HOME so nothing lands in /root (the launcher
 # bind-mounts a host dir over it), then copy the self-contained binary

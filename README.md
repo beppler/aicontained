@@ -30,24 +30,24 @@ Images are stored **per engine and per machine** — you must build on each mach
 Single Go binary; all the tool commands (`claude`, `codex`, ...) are links to it:
 
 ```bash
-go run github.com/beppler/cli-tools/cmd/cli-tools@latest install
+go run github.com/beppler/aicontained/cmd/aicontained@latest install
 ```
 
-Or from a checkout of this repo: `go run ./cmd/cli-tools install`.
+Or from a checkout of this repo: `go run ./cmd/aicontained install`.
 
-No Go on the target machine? Run `scripts/cross-build.sh` anywhere (writes one binary per platform to `dist/`), copy the matching `dist/cli-tools-<os>-<arch>` over, and use it as `cli-tools`.
+No Go on the target machine? Run `scripts/cross-build.sh` anywhere (writes one binary per platform to `dist/`), copy the matching `dist/aicontained-<os>-<arch>` over, and use it as `aicontained`.
 
 ### 2. Create the tool links and build the images
 
 Same on every OS:
 
 ```bash
-cli-tools install           # copy binary + create all six tool links
-cli-tools install claude agy  # only some tools
-cli-tools build             # build all images (no install)
-cli-tools build claude agy  # only some images
-cli-tools build --no-cache  # rebuild from scratch: picks up new tools + OS security patches the build cache can't see
-cli-tools build --prune-images  # also prune dangling build images
+aicontained install           # copy binary + create all six tool links
+aicontained install claude agy  # only some tools
+aicontained build             # build all images (no install)
+aicontained build claude agy  # only some images
+aicontained build --no-cache  # rebuild from scratch: picks up new tools + OS security patches the build cache can't see
+aicontained build --prune-images  # also prune dangling build images
 ```
 
 On a fresh machine run `install` once, then `build`. `install` puts the binary in `~/.local/bin/` (Windows: `%LOCALAPPDATA%\Programs\bin`) and makes one link per tool — add that directory to your `PATH`.
@@ -61,9 +61,9 @@ wsl --update --pre-release
 wsl --shutdown
 ```
 
-Reopen the terminal, then confirm `wslc --version` prints 2.9.3+. After `cli-tools install`, `claude`, `codex`, `copilot`, `agy`, `opencode`, `pi` work from PowerShell or cmd.exe. Symlink creation there needs Developer Mode (or elevation); without it, `install` fails with a message saying exactly that. `wslc.exe` ships as part of WSL itself and runs each container in its own lightweight Hyper-V VM.
+Reopen the terminal, then confirm `wslc --version` prints 2.9.3+. After `aicontained install`, `claude`, `codex`, `copilot`, `agy`, `opencode`, `pi` work from PowerShell or cmd.exe. Symlink creation there needs Developer Mode (or elevation); without it, `install` fails with a message saying exactly that. `wslc.exe` ships as part of WSL itself and runs each container in its own lightweight Hyper-V VM.
 
-**macOS.** Apple `container` requires Apple Silicon and macOS 15+ (full support on macOS 26). `cli-tools build` starts the daemon for you; on some setups you may need `container system start` again after a reboot.
+**macOS.** Apple `container` requires Apple Silicon and macOS 15+ (full support on macOS 26). `aicontained build` starts the daemon for you; on some setups you may need `container system start` again after a reboot.
 
 **WSL (Podman networking).** Podman networking needs `slirp4netns`:
 
@@ -89,7 +89,7 @@ claude    # or codex / copilot / agy / opencode / pi
 
 **How mounting works:** the current directory is bind-mounted at `/workspace/<hash-of-host-path>/<folder-name>`. The hash is deliberate — these tools key per-project state (sessions, memory, folder trust) by path, so every project must map to a unique in-container path. Side effect: renaming or moving a project on the host gives it a fresh hash and a fresh session history.
 
-**Auth persistence:** each tool keeps its credentials in a dedicated host folder per tool under `~/.cli-tools/` (macOS/Linux) or `%USERPROFILE%\.cli-tools\` (Windows), bind-mounted as `/root` in the container — log in once, stay logged in.
+**Auth persistence:** each tool keeps its credentials in a dedicated host folder per tool under `~/.aicontained/` (macOS/Linux) or `%USERPROFILE%\.aicontained\` (Windows), bind-mounted as `/root` in the container — log in once, stay logged in.
 
 ## Logging in
 
@@ -144,13 +144,13 @@ The retained capabilities are what file handling and `apt-get install` inside th
 opencode keeps a service registration in its state directory, which can't be shared between running instances. Each `opencode` run therefore mounts its own temporary state folder over `/root/.local/state/opencode`, named after the launcher's PID and removed when the run ends:
 
 ```text
-~/.cli-tools/opencode-home/.local/state/opencode-<pid>
+~/.aicontained/opencode-home/.local/state/opencode-<pid>
 ```
 
 A crash or `kill -9` can leave one behind. To list orphans — folders whose PID has no running process (macOS/Linux):
 
 ```bash
-for d in ~/.cli-tools/opencode-home/.local/state/opencode-*; do
+for d in ~/.aicontained/opencode-home/.local/state/opencode-*; do
   [ -d "$d" ] || continue
   kill -0 "${d##*-}" 2>/dev/null || echo "orphan: $d"
 done
@@ -159,14 +159,14 @@ done
 On Windows (PowerShell):
 
 ```powershell
-Get-ChildItem "$env:USERPROFILE\.cli-tools\opencode-home\.local\state" -Directory -Filter 'opencode-*' |
+Get-ChildItem "$env:USERPROFILE\.aicontained\opencode-home\.local\state" -Directory -Filter 'opencode-*' |
   Where-Object { -not (Get-Process -Id ($_.Name -replace '^opencode-','') -ErrorAction SilentlyContinue) } |
   ForEach-Object { "orphan: $($_.FullName)" }
 ```
 
 Orphans are safe to delete. A reused PID can make an orphan look alive, so a folder that is never listed isn't proof that it's in use.
 
-**What persists between runs:** model selection (`model.json`), prompt history (`prompt-history.jsonl`), and the release-highlights "seen" marker (`latest/tui/highlights.json` — without it the "What's new" dialog would open on every run) are seeded from, and saved back to, the shared state folder (`~/.cli-tools/opencode-home/.local/state/opencode`) on every run. Only `service.json` (the per-run server registration) and the rest of `latest/` and `locks/` stay ephemeral. With concurrent instances, the last to exit wins for `model.json` and the marker; prompt history merges instead, because each run appends only entries not already in the shared JSONL file. If a run crashes before the save-back, the previous saved copy is used.
+**What persists between runs:** model selection (`model.json`), prompt history (`prompt-history.jsonl`), and the release-highlights "seen" marker (`latest/tui/highlights.json` — without it the "What's new" dialog would open on every run) are seeded from, and saved back to, the shared state folder (`~/.aicontained/opencode-home/.local/state/opencode`) on every run. Only `service.json` (the per-run server registration) and the rest of `latest/` and `locks/` stay ephemeral. With concurrent instances, the last to exit wins for `model.json` and the marker; prompt history merges instead, because each run appends only entries not already in the shared JSONL file. If a run crashes before the save-back, the previous saved copy is used.
 
 ## Troubleshooting: Windows line endings (CRLF)
 
@@ -180,6 +180,21 @@ Two caveats:
 **Go tools (`gofmt -l` lists every file):** `gofmt` treats CRLF as unformatted, and `core.autocrlf` can't help because the files really are CRLF on disk. Commit a `.gitattributes` with `*.go text eol=lf` (this repo does), then refresh the working tree: `git rm --cached -r -q . && git reset --hard` (commit or stash changes first).
 
 Still seeing phantom diffs? Check with `git diff --ignore-cr-at-eol --stat`; if needed, set the same two values in the repo's `.git/config` and add to the project's `CLAUDE.md`/`AGENTS.md`: "This working tree uses Windows line endings. Never convert or 'fix' line endings." Don't run `dos2unix` — it only moves the phantom changes to the Windows side and breaks `.bat`/`.cmd` files.
+
+## Upgrading from cli-tools
+
+The project was renamed to `aicontained`. Do these steps **before** running any tool, so your logins carry over:
+
+```bash
+mv ~/.cli-tools ~/.aicontained     # Windows: rename %USERPROFILE%\.cli-tools to .aicontained
+aicontained install                # re-point the tool links at the new binary
+aicontained build                  # images are renamed too, so rebuild them (required)
+rm ~/.local/bin/cli-tools          # Windows: delete cli-tools.exe from %LOCALAPPDATA%\Programs\bin
+podman images --format '{{.Repository}}' | grep '^cli-tools-' | xargs -r podman rmi   # old images
+```
+
+For `container` or `wslc`, remove the old `cli-tools-*` images with that engine's own `rmi`/`image delete`.
+If you already ran a tool after upgrading, `~/.aicontained` exists and `mv` would nest the old folder inside it; merge the folders by hand instead.
 
 ## License
 

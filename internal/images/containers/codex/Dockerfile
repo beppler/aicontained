@@ -1,4 +1,4 @@
-FROM cli-tools-base
+FROM aicontained-base
 
 # The installer keeps the real files under $CODEX_HOME and only symlinks
 # /usr/local/bin/codex to them. The launcher bind-mounts a host dir over /root,
