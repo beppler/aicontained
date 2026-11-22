@@ -35,7 +35,7 @@ go run github.com/beppler/aicontained/cmd/aicontained@latest install
 
 Or from a checkout of this repo: `go run ./cmd/aicontained install`.
 
-No Go on the target machine? Run `scripts/cross-build.sh` anywhere (writes one binary per platform to `dist/`), copy the matching `dist/aicontained-<os>-<arch>` over, and use it as `aicontained`.
+No Go on the target machine? Run `make` from a checkout anywhere (GNU make; on Windows install it with e.g. `winget install GnuWin32.Make` — writes one binary per platform to `dist/`), copy the matching `dist/aicontained-<os>-<arch>` over, and use it as `aicontained`.
 
 ### 2. Create the tool links and build the images
 
