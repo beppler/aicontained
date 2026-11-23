@@ -15,7 +15,7 @@ import (
 
 func main() {
 	if tool, ok := toolFor(os.Args[0]); ok {
-		runTool(tool, os.Args[1:])
+		launch(tool, os.Args[1:], launcher.Run)
 	}
 
 	args := os.Args[1:]
@@ -28,6 +28,12 @@ func main() {
 		os.Exit(buildcmd.Build(args[1:]))
 	case "install":
 		os.Exit(buildcmd.Install(args[1:]))
+	case "shell":
+		if len(args) < 2 {
+			fmt.Fprintf(os.Stderr, "Usage: aicontained shell <tool> [bash args...] (available: %s)\n", strings.Join(names(), " "))
+			os.Exit(1)
+		}
+		launch(lookup(args[1]), args[2:], launcher.Shell)
 	case "-h", "--help", "help":
 		usage()
 	case "--list", "list":
@@ -35,7 +41,7 @@ func main() {
 			fmt.Println(t.Name)
 		}
 	default:
-		runFor(args[0], args[1:])
+		launch(lookup(args[0]), args[1:], launcher.Run)
 	}
 }
 
@@ -54,21 +60,24 @@ func toolName(argv0 string) string {
 	return strings.TrimSuffix(name, ".exe")
 }
 
-func runTool(tool tools.Tool, args []string) {
-	rc, err := launcher.Run(tool, args)
+// launch runs tool via fn (launcher.Run or launcher.Shell) and exits with
+// its code.
+func launch(tool tools.Tool, args []string, fn func(tools.Tool, []string) (int, error)) {
+	rc, err := fn(tool, args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "aicontained:", err)
 	}
 	os.Exit(rc)
 }
 
-func runFor(name string, args []string) {
+// lookup finds the named tool, or exits with the list of known ones.
+func lookup(name string) tools.Tool {
 	tool, ok := tools.Lookup(name)
 	if !ok {
 		fmt.Fprintf(os.Stderr, "Unknown tool: %s (available: %s)\n", name, strings.Join(names(), " "))
 		os.Exit(1)
 	}
-	runTool(tool, args)
+	return tool
 }
 
 func names() []string {
@@ -86,6 +95,7 @@ func usage() {
 Usage:
   claude|codex|copilot|agy|opencode|pi [args...]
   aicontained <tool> [args...]
+  aicontained shell <tool> [bash args...]
   aicontained build [tool...] [--prune-images] [--no-cache]
   aicontained install [tool...]
   aicontained --list

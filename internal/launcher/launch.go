@@ -18,6 +18,17 @@ import (
 // Run detects the engine, prepares the tool's host directories, and runs the
 // image in a child process, propagating its exit code.
 func Run(tool tools.Tool, args []string) (int, error) {
+	return run(tool, "", args)
+}
+
+// Shell runs the tool's image like Run, but with bash as the entrypoint, so
+// args go to bash instead of the tool.
+func Shell(tool tools.Tool, args []string) (int, error) {
+	return run(tool, "bash", args)
+}
+
+// run is Run with an optional entrypoint override ("" keeps the image's).
+func run(tool tools.Tool, entrypoint string, args []string) (int, error) {
 	eng, err := engine.Detect()
 	if err != nil {
 		return 1, err
@@ -38,7 +49,11 @@ func Run(tool tools.Tool, args []string) (int, error) {
 	// wslc requires a unique container name; the others just benefit from an
 	// identifiable one. The pid is unique among live processes; a recycled pid
 	// can hit a stale crashed container — rerun to recover.
-	name := fmt.Sprintf("%s_cli_%d", tool.Name, os.Getpid())
+	kind := "cli"
+	if entrypoint != "" {
+		kind = "shell"
+	}
+	name := fmt.Sprintf("%s_%s_%d", tool.Name, kind, os.Getpid())
 	stateDir := ""
 	if tool.StateMount {
 		run, err := opencode.Seed(home)
@@ -52,7 +67,7 @@ func Run(tool tools.Tool, args []string) (int, error) {
 		}()
 		stateDir = run.Dir()
 	}
-	cmdArgs, err := assemble(tool, runtime.GOOS, host, workdir.ContainerPath(host), home, stateDir, name, args)
+	cmdArgs, err := assemble(tool, runtime.GOOS, host, workdir.ContainerPath(host), home, stateDir, name, entrypoint, args)
 	if err != nil {
 		return 1, err
 	}
@@ -61,7 +76,7 @@ func Run(tool tools.Tool, args []string) (int, error) {
 
 // assemble builds the full engine argument list. Pure so the golden test can
 // pin the exact flags per platform.
-func assemble(tool tools.Tool, goos, hostDir, workDir, homeDir, stateDir, containerName string, args []string) ([]string, error) {
+func assemble(tool tools.Tool, goos, hostDir, workDir, homeDir, stateDir, containerName, entrypoint string, args []string) ([]string, error) {
 	out := []string{"run", "--rm", "-it"}
 
 	// Apple `container` runs each container in its own VM; quiet its
@@ -96,6 +111,10 @@ func assemble(tool tools.Tool, goos, hostDir, workDir, homeDir, stateDir, contai
 			"--cap-drop=ALL",
 			"--cap-add=CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETUID,SETGID",
 		)
+	}
+
+	if entrypoint != "" {
+		out = append(out, "--entrypoint", entrypoint)
 	}
 
 	if containerName != "" {

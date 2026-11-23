@@ -3,7 +3,7 @@ FROM docker.io/library/debian:trixie-slim
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get update \
     && apt-get upgrade -y \
-    && apt-get install -y --no-install-recommends bubblewrap ca-certificates curl git tree libatomic1 \
+    && apt-get install -y --no-install-recommends bubblewrap ca-certificates curl git tree libatomic1 vim \
     && curl -fsSL https://mise.run | MISE_INSTALL_PATH=/usr/local/bin/mise MISE_INSTALL_HELP=0 sh \
     && rm -rf /var/lib/apt/lists/*
 
