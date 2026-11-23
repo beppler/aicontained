@@ -8,6 +8,7 @@
 #   make                               # build every platform
 #   make dist/aicontained-linux-amd64  # build a single platform
 #   make clean                         # remove dist/
+#   make install                       # install binary + tool links on this machine
 
 BIN       := aicontained
 PKG       := ./cmd/aicontained
@@ -29,7 +30,7 @@ $(foreach p,$(PLATFORMS),$(eval $(call platform-rule,$(word 1,$(subst /, ,$(p)))
 
 # Always invoke go build; Go's build cache makes no-op rebuilds cheap and
 # tracks source dependencies better than make could.
-.PHONY: cross-build clean $(TARGETS)
+.PHONY: cross-build $(TARGETS) clean install
 
 cross-build: $(TARGETS)
 
@@ -43,3 +44,6 @@ ifeq ($(OS),Windows_NT)
 else
 	rm -rf $(DIST)
 endif
+
+install:
+	go run ./cmd/aicontained install

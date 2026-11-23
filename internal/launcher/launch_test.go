@@ -16,6 +16,7 @@ func TestAssemble(t *testing.T) {
 		ctrName  string
 		stateDir string
 		homeSub  string
+		entry    string
 		want     []string
 	}{
 		{
@@ -145,6 +146,40 @@ func TestAssemble(t *testing.T) {
 				"aicontained-pi", "--version",
 			},
 		},
+		{
+			// `aicontained shell`: same run, bash overrides the entrypoint.
+			name: "claude-shell/linux", tool: "claude", goos: "linux", ctrName: "claude_shell_42", homeSub: "claude-home", entry: "bash",
+			want: []string{
+				"run", "--rm", "-it",
+				"-v", host + ":" + work,
+				"-v", home + "/claude-home:/root",
+				"-w", work,
+				"-e", "TERM", "-e", "COLORTERM",
+				"-e", "ANTHROPIC_API_KEY",
+				"--security-opt", "no-new-privileges",
+				"--cap-drop=ALL",
+				"--cap-add=CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETUID,SETGID",
+				"--entrypoint", "bash",
+				"--name", "claude_shell_42",
+				"aicontained-claude", "--version",
+			},
+		},
+		{
+			name: "opencode-shell/darwin", tool: "opencode", goos: "darwin", ctrName: "opencode_shell_42", stateDir: home + "/opencode-home/.local/state/opencode-1234", homeSub: "opencode-home", entry: "bash",
+			want: []string{
+				"run", "--rm", "-it", "--progress", "none",
+				"-v", host + ":" + work,
+				"-v", home + "/opencode-home:/root",
+				"-v", home + "/opencode-home/.local/state/opencode-1234:/root/.local/state/opencode",
+				"-w", work,
+				"-e", "TERM", "-e", "COLORTERM",
+				"-e", "ANTHROPIC_API_KEY", "-e", "OPENAI_API_KEY",
+				"-e", "GEMINI_API_KEY", "-e", "GOOGLE_API_KEY", "-e", "GOOGLE_GENAI_USE_VERTEXAI",
+				"--entrypoint", "bash",
+				"--name", "opencode_shell_42",
+				"aicontained-opencode", "--version",
+			},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -152,7 +187,7 @@ func TestAssemble(t *testing.T) {
 			if !ok {
 				t.Fatalf("unknown tool %q", c.tool)
 			}
-			got, err := assemble(tool, c.goos, host, work, home+"/"+c.homeSub, c.stateDir, c.ctrName, []string{"--version"})
+			got, err := assemble(tool, c.goos, host, work, home+"/"+c.homeSub, c.stateDir, c.ctrName, c.entry, []string{"--version"})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -180,7 +215,7 @@ func TestAssembleMountFallback(t *testing.T) {
 	const work = "/workspace/HASH/proj"
 
 	// Linux: --mount replaces -v.
-	got, err := assemble(tool, "linux", "/home/u/proj:v2", work, "/home/u/.aicontained/claude-home", "", "", []string{"--version"})
+	got, err := assemble(tool, "linux", "/home/u/proj:v2", work, "/home/u/.aicontained/claude-home", "", "", "", []string{"--version"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +227,7 @@ func TestAssembleMountFallback(t *testing.T) {
 	}
 
 	// Windows keeps -v even with a colon (wslc handles drive letters).
-	got, err = assemble(tool, "windows", "/home/u/proj:v2", work, "/home/u/.aicontained/claude-home", "", "", nil)
+	got, err = assemble(tool, "windows", "/home/u/proj:v2", work, "/home/u/.aicontained/claude-home", "", "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +237,7 @@ func TestAssembleMountFallback(t *testing.T) {
 
 	// Colon + comma: not mountable on any non-Windows engine; must error
 	// clearly instead of failing inside podman.
-	_, err = assemble(tool, "linux", "/home/u/proj:v2,final", work, "/home/u/.aicontained/claude-home", "", "", nil)
+	_, err = assemble(tool, "linux", "/home/u/proj:v2,final", work, "/home/u/.aicontained/claude-home", "", "", "", nil)
 	if err == nil {
 		t.Fatal("want an error for a path containing both ':' and ','")
 	}

@@ -107,6 +107,13 @@ cd ~/my-project
 claude    # or codex / copilot / agy / opencode / pi
 ```
 
+**Shell into a tool's container:** `aicontained shell <tool>` starts the same container (mounts, home, env, hardening) with `bash` as the entrypoint instead of the tool - handy for debugging, inspecting the persisted home, or running the tool with custom flags. Extra arguments go to bash. Inside the shell, a tool started by hand runs without the image's default flags (e.g. codex's `sandbox_mode`, copilot's `--no-auto-update` - see each Dockerfile's `ENTRYPOINT`):
+
+```bash
+aicontained shell claude            # interactive bash in the claude container
+aicontained shell codex -c 'ls ~'   # run a one-off command
+```
+
 **How mounting works:** the current directory is bind-mounted at `/workspace/<hash-of-host-path>/<folder-name>`. The hash is deliberate - these tools key per-project state (sessions, memory, folder trust) by path, so every project must map to a unique in-container path. Side effect: renaming or moving a project on the host gives it a fresh hash and a fresh session history.
 
 **Auth persistence:** each tool keeps its credentials in a dedicated host folder per tool under `~/.aicontained/` (macOS/Linux) or `%USERPROFILE%\.aicontained\` (Windows), bind-mounted as `/root` in the container - log in once, stay logged in.
