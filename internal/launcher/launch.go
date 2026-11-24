@@ -49,7 +49,12 @@ func run(tool tools.Tool, entrypoint string, args []string) (int, error) {
 	if err != nil {
 		return 1, err
 	}
-	if err := os.MkdirAll(home, 0o755); err != nil {
+	// 0700: the home holds the tool's login tokens. Chmod also tightens
+	// folders created by older versions with 0755.
+	if err := os.MkdirAll(home, 0o700); err != nil {
+		return 1, err
+	}
+	if err := os.Chmod(home, 0o700); err != nil {
 		return 1, err
 	}
 

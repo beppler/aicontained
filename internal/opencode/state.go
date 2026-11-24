@@ -34,10 +34,11 @@ func Seed(homeDir string) (*Run, error) {
 	if err := os.RemoveAll(dir); err != nil { // stale leftover from a reused PID
 		return nil, err
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	// 0700: the state sits under the tool's credential home.
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(shared, 0o755); err != nil {
+	if err := os.MkdirAll(shared, 0o700); err != nil {
 		return nil, err
 	}
 	for _, f := range keep {
