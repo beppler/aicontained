@@ -118,6 +118,15 @@ aicontained shell codex -c 'ls ~'   # run a one-off command
 
 **Auth persistence:** each tool keeps its credentials in a dedicated host folder per tool under `~/.aicontained/` (macOS/Linux) or `%USERPROFILE%\.aicontained\` (Windows), bind-mounted as `/root` in the container - log in once, stay logged in.
 
+**Profiles:** to keep separate logins for a tool (e.g. work vs. personal), set a profile in `~/.aicontained/aicontained.toml`:
+
+```toml
+[claude]
+profile = "personal"
+```
+
+The tool then uses `claude-home-personal` instead of `claude-home`. Tables are named after the command (`claude`, `codex`, `copilot`, `agy`, `opencode`, `pi`); a missing file, table or empty profile keeps the default folder. Profile names may only contain letters, digits, `_`, `.` and `-`, may not be `.` or `..` or end with `.`, and are case-insensitive (always folded to lowercase). A table without a `profile` key is an error — this catches typos like `profil` that would otherwise silently fall back to the default folder; fix or delete the offending table.
+
 ## Logging in
 
 | Tool | Method | Notes |

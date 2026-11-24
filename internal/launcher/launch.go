@@ -3,12 +3,16 @@
 package launcher
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 
+	"github.com/BurntSushi/toml"
 	"github.com/beppler/aicontained/internal/engine"
 	"github.com/beppler/aicontained/internal/opencode"
 	"github.com/beppler/aicontained/internal/tools"
@@ -41,7 +45,10 @@ func run(tool tools.Tool, entrypoint string, args []string) (int, error) {
 	if err != nil {
 		return 1, fmt.Errorf("cannot read current directory: %w", err)
 	}
-	home := filepath.Join(userHome, ".aicontained", tool.HomeDir)
+	home, err := homeDir(filepath.Join(userHome, ".aicontained"), tool)
+	if err != nil {
+		return 1, err
+	}
 	if err := os.MkdirAll(home, 0o755); err != nil {
 		return 1, err
 	}
@@ -72,6 +79,46 @@ func run(tool tools.Tool, entrypoint string, args []string) (int, error) {
 		return 1, err
 	}
 	return runChild(eng.Name, cmdArgs)
+}
+
+var profileRe = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
+
+// homeDir returns the tool's host home under base, suffixed by its profile
+// from base/aicontained.toml ([tool] profile = "name"), if any.
+func homeDir(base string, tool tools.Tool) (string, error) {
+	cfg := filepath.Join(base, "aicontained.toml")
+	var conf map[string]struct{ Profile string }
+	md, err := toml.DecodeFile(cfg, &conf)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return "", fmt.Errorf("reading %s: %w", cfg, err)
+	}
+	profile := ""
+	seen := map[string]bool{}
+	for name, t := range conf {
+		lower := strings.ToLower(name)
+		// A typo like "profil" would silently fall back to the default folder.
+		if !md.IsDefined(name, "profile") {
+			return "", fmt.Errorf("%s: table [%s] has no profile", cfg, name)
+		}
+		// [Claude] and [claude] are distinct TOML keys; map order would pick one at random.
+		if seen[lower] {
+			return "", fmt.Errorf("%s: duplicate table for %s", cfg, lower)
+		}
+		seen[lower] = true
+		if lower == tool.Name {
+			profile = t.Profile
+		}
+	}
+	p := strings.ToLower(profile) // folder names must not differ by case alone (Windows is case-insensitive)
+	if p == "" {
+		return filepath.Join(base, tool.HomeDir), nil
+	}
+	// The profile becomes a path component: reject anything that could escape
+	// base, or that Windows would rename away (a trailing dot is stripped).
+	if !profileRe.MatchString(p) || p == "." || p == ".." || strings.HasSuffix(p, ".") {
+		return "", fmt.Errorf("%s: invalid profile %q for %s", cfg, profile, tool.Name)
+	}
+	return filepath.Join(base, tool.HomeDir+"-"+p), nil
 }
 
 // assemble builds the full engine argument list. Pure so the golden test can
