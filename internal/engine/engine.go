@@ -23,17 +23,21 @@ func Detect() (*Engine, error) {
 func detect(goos string, lookPath func(string) (string, error)) (*Engine, error) {
 	switch goos {
 	case "darwin":
-		return &Engine{Name: "container"}, nil
+		if _, err := lookPath("container"); err == nil {
+			return &Engine{Name: "container"}, nil
+		}
 	case "windows":
-		return &Engine{Name: "wslc"}, nil
+		if _, err := lookPath("wslc"); err == nil { // LookPath resolves .exe on Windows
+			return &Engine{Name: "wslc"}, nil
+		}
 	case "linux":
 		if _, err := lookPath("podman"); err == nil {
 			return &Engine{Name: "podman"}, nil
 		}
-		return nil, fmt.Errorf("No supported container engine found. Supported: Apple container (macOS), Podman (Linux). Docker is not supported.")
 	default:
 		return nil, fmt.Errorf("Unsupported OS: %s", goos)
 	}
+	return nil, fmt.Errorf("No supported container engine found. Supported: Apple container (macOS), Podman (Linux), WSL Containers (Windows). Docker is not supported.")
 }
 
 // Run executes the engine with args, inheriting stdio, and returns the exit
