@@ -244,8 +244,10 @@ func binDir() (string, error) {
 		return "", errors.New("LOCALAPPDATA is not set: cannot determine the install directory")
 	}
 	home, err := os.UserHomeDir()
-	if err != nil {
-		home = "."
+	if err != nil || home == "" {
+		// No home: like the empty LOCALAPPDATA above, a "" would make the
+		// path relative and the install would land in the current directory.
+		return "", errors.New("cannot determine the user's home directory")
 	}
 	return filepath.Join(home, ".local", "bin"), nil
 }

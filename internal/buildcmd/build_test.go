@@ -72,6 +72,18 @@ func TestBinDirMissingLocalAppData(t *testing.T) {
 	}
 }
 
+// Unix mirrors Windows: no home directory must fail the install instead of
+// silently writing into the current directory.
+func TestBinDirMissingHome(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("unix-only")
+	}
+	t.Setenv("HOME", "")
+	if _, err := binDir(); err == nil {
+		t.Error("binDir with empty HOME: want an error")
+	}
+}
+
 // Install rejects unknown tool names with exit code 1, like Build does.
 func TestInstallUnknownTool(t *testing.T) {
 	if code := Install([]string{"nope"}); code != 1 {
