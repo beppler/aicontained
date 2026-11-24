@@ -53,6 +53,9 @@ func runChild(name string, args []string) (int, error) {
 }
 
 func exitCode(ps *os.ProcessState) int {
+	if ps == nil { // Wait failed before reaping; matches the Windows guard
+		return 1
+	}
 	if rc := ps.ExitCode(); rc >= 0 {
 		return rc
 	}
