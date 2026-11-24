@@ -198,7 +198,10 @@ func install(list []tools.Tool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dest := binDir()
+	dest, err := binDir()
+	if err != nil {
+		return "", err
+	}
 	if err := os.MkdirAll(dest, 0o755); err != nil {
 		return "", err
 	}
@@ -231,15 +234,20 @@ func linkName(name string) string {
 	return name
 }
 
-func binDir() string {
+func binDir() (string, error) {
 	if runtime.GOOS == "windows" {
-		return filepath.Join(os.Getenv("LOCALAPPDATA"), "Programs", "bin")
+		// An empty LOCALAPPDATA would make the dest path relative and the
+		// install would silently land in the current directory.
+		if dir := os.Getenv("LOCALAPPDATA"); dir != "" {
+			return filepath.Join(dir, "Programs", "bin"), nil
+		}
+		return "", errors.New("LOCALAPPDATA is not set: cannot determine the install directory")
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		home = "."
 	}
-	return filepath.Join(home, ".local", "bin")
+	return filepath.Join(home, ".local", "bin"), nil
 }
 
 // linkTool creates a per-tool symlink to the binary. Symlinks are required:

@@ -60,6 +60,18 @@ func TestInstall(t *testing.T) {
 	}
 }
 
+// On Windows an unset LOCALAPPDATA must fail the install instead of
+// silently writing into the current directory.
+func TestBinDirMissingLocalAppData(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("windows-only")
+	}
+	t.Setenv("LOCALAPPDATA", "")
+	if _, err := binDir(); err == nil {
+		t.Error("binDir with empty LOCALAPPDATA: want an error")
+	}
+}
+
 // Install rejects unknown tool names with exit code 1, like Build does.
 func TestInstallUnknownTool(t *testing.T) {
 	if code := Install([]string{"nope"}); code != 1 {
