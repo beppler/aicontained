@@ -50,6 +50,14 @@ func TestChildProcessGroup(t *testing.T) {
 
 // A non-zero exit is a result, not an error: main would print a bogus
 // "aicontained: exit status N" line on every failing engine run otherwise.
+// A Wait that failed before reaping the child leaves ProcessState nil;
+// exitCode must report an error exit, not panic.
+func TestExitCodeNilProcessState(t *testing.T) {
+	if got := exitCode(nil); got != 1 {
+		t.Errorf("exitCode(nil) = %d, want 1", got)
+	}
+}
+
 func TestRunChildNonZeroExitIsNotAnError(t *testing.T) {
 	engine := filepath.Join(t.TempDir(), "fakeengine")
 	if err := os.WriteFile(engine, []byte("#!/bin/sh\nexit 3\n"), 0o755); err != nil {
