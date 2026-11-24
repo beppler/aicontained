@@ -1,6 +1,8 @@
 package launcher
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/beppler/aicontained/internal/tools"
@@ -240,5 +242,47 @@ func TestAssembleMountFallback(t *testing.T) {
 	_, err = assemble(tool, "linux", "/home/u/proj:v2,final", work, "/home/u/.aicontained/claude-home", "", "", "", nil)
 	if err == nil {
 		t.Fatal("want an error for a path containing both ':' and ','")
+	}
+}
+
+func TestHomeDir(t *testing.T) {
+	claude := tools.Tool{Name: "claude", HomeDir: "claude-home"}
+	cases := []struct {
+		name, conf, want string // want "" means an error is expected
+	}{
+		{"no file", "", "claude-home"},
+		{"no tool table", "[codex]\nprofile = \"x\"\n", "claude-home"},
+		{"empty profile", "[claude]\nprofile = \"\"\n", "claude-home"},
+		{"profile", "[claude]\nprofile = \"personal\"\n", "claude-home-personal"},
+		{"invalid profile", "[claude]\nprofile = \"../x\"\n", ""},
+		{"dot profile", "[claude]\nprofile = \"..\"\n", ""},
+		{"trailing dot", "[claude]\nprofile = \"x.\"\n", ""},
+		{"case-insensitive", "[claude]\nprofile = \"Personal\"\n", "claude-home-personal"},
+		{"case-insensitive table", "[Claude]\nprofile = \"x\"\n", "claude-home-x"},
+		{"duplicate table", "[claude]\nprofile = \"a\"\n[Claude]\nprofile = \"b\"\n", ""},
+		{"typo key", "[claude]\nprofil = \"x\"\n", ""},
+		{"unknown table ignored", "[claud]\nprofile = \"x\"\n", "claude-home"},
+		{"malformed", "[claude\n", ""},
+		{"top-level key", "profile = \"x\"\n", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			base := t.TempDir()
+			if c.name != "no file" {
+				if err := os.WriteFile(filepath.Join(base, "aicontained.toml"), []byte(c.conf), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, err := homeDir(base, claude)
+			if c.want == "" {
+				if err == nil {
+					t.Fatalf("want error, got %q", got)
+				}
+				return
+			}
+			if err != nil || got != filepath.Join(base, c.want) {
+				t.Fatalf("got %q, %v; want %q", got, err, c.want)
+			}
+		})
 	}
 }
