@@ -1,8 +1,11 @@
 package launcher
 
 import (
+	"net"
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"testing"
 
 	"github.com/beppler/aicontained/internal/tools"
@@ -17,6 +20,7 @@ func TestAssemble(t *testing.T) {
 		goos     string
 		ctrName  string
 		stateDir string
+		sshAgent string
 		homeSub  string
 		entry    string
 		want     []string
@@ -189,7 +193,7 @@ func TestAssemble(t *testing.T) {
 			if !ok {
 				t.Fatalf("unknown tool %q", c.tool)
 			}
-			got, err := assemble(tool, c.goos, host, work, home+"/"+c.homeSub, c.stateDir, c.ctrName, c.entry, []string{"--version"})
+			got, err := assemble(tool, c.goos, host, work, home+"/"+c.homeSub, c.stateDir, c.sshAgent, c.ctrName, c.entry, []string{"--version"})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -217,7 +221,7 @@ func TestAssembleMountFallback(t *testing.T) {
 	const work = "/workspace/HASH/proj"
 
 	// Linux: --mount replaces -v.
-	got, err := assemble(tool, "linux", "/home/u/proj:v2", work, "/home/u/.aicontained/claude-home", "", "", "", []string{"--version"})
+	got, err := assemble(tool, "linux", "/home/u/proj:v2", work, "/home/u/.aicontained/claude-home", "", "", "", "", []string{"--version"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +233,7 @@ func TestAssembleMountFallback(t *testing.T) {
 	}
 
 	// Windows keeps -v even with a colon (wslc handles drive letters).
-	got, err = assemble(tool, "windows", "/home/u/proj:v2", work, "/home/u/.aicontained/claude-home", "", "", "", nil)
+	got, err = assemble(tool, "windows", "/home/u/proj:v2", work, "/home/u/.aicontained/claude-home", "", "", "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,9 +243,86 @@ func TestAssembleMountFallback(t *testing.T) {
 
 	// Colon + comma: not mountable on any non-Windows engine; must error
 	// clearly instead of failing inside podman.
-	_, err = assemble(tool, "linux", "/home/u/proj:v2,final", work, "/home/u/.aicontained/claude-home", "", "", "", nil)
+	_, err = assemble(tool, "linux", "/home/u/proj:v2,final", work, "/home/u/.aicontained/claude-home", "", "", "", "", nil)
 	if err == nil {
 		t.Fatal("want an error for a path containing both ':' and ','")
+	}
+}
+
+const agentSock = "/run/user/1000/agent.sock"
+
+func TestAssembleSSHAgent(t *testing.T) {
+	tool, ok := tools.Lookup("claude")
+	if !ok {
+		t.Fatal("unknown tool claude")
+	}
+	const work = "/workspace/HASH/proj"
+
+	// Linux: socket mount plus the container-side env value.
+	got, err := assemble(tool, "linux", "/home/u/proj", work, "/home/u/.aicontained/claude-home", "", agentSock, "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"-v", agentSock + ":/var/run/ssh-agent",
+		"-e", "SSH_AUTH_SOCK=/var/run/ssh-agent",
+	}
+	for _, w := range want {
+		if !slices.Contains(got, w) {
+			t.Errorf("linux: missing %q\nfull got: %q", w, got)
+		}
+	}
+
+	// macOS: same.
+	got, err = assemble(tool, "darwin", "/home/u/proj", work, "/home/u/.aicontained/claude-home", "", agentSock, "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, w := range want {
+		if !slices.Contains(got, w) {
+			t.Errorf("darwin: missing %q\nfull got: %q", w, got)
+		}
+	}
+
+	// Windows: never mounted, never set.
+	got, err = assemble(tool, "windows", "/home/u/proj", work, "/home/u/.aicontained/claude-home", "", agentSock, "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range got {
+		if a == agentSock || a == "SSH_AUTH_SOCK=/var/run/ssh-agent" {
+			t.Errorf("windows: agent leaked into args: %q", got)
+		}
+	}
+}
+
+func TestSSHAgentSock(t *testing.T) {
+	t.Setenv("SSH_AUTH_SOCK", "")
+	if got := sshAgentSock(); got != "" {
+		t.Errorf("unset var: got %q, want \"\"", got)
+	}
+
+	// A real unix socket passes; a missing path does not.
+	dir := t.TempDir()
+	sock := filepath.Join(dir, "agent.sock")
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	t.Setenv("SSH_AUTH_SOCK", sock)
+	want := sock
+	if runtime.GOOS == "windows" { // passthrough is off on Windows even with a live socket
+		want = ""
+	}
+	if got := sshAgentSock(); got != want {
+		t.Errorf("live socket: got %q, want %q", got, want)
+	}
+
+	missing := filepath.Join(dir, "missing.sock")
+	t.Setenv("SSH_AUTH_SOCK", missing)
+	if got := sshAgentSock(); got != "" {
+		t.Errorf("missing socket: got %q, want \"\"", got)
 	}
 }
 

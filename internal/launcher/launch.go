@@ -79,7 +79,7 @@ func run(tool tools.Tool, entrypoint string, args []string) (int, error) {
 		}()
 		stateDir = run.Dir()
 	}
-	cmdArgs, err := assemble(tool, runtime.GOOS, host, workdir.ContainerPath(host), home, stateDir, name, entrypoint, args)
+	cmdArgs, err := assemble(tool, runtime.GOOS, host, workdir.ContainerPath(host), home, stateDir, sshAgentSock(), name, entrypoint, args)
 	if err != nil {
 		return 1, err
 	}
@@ -126,9 +126,29 @@ func homeDir(base string, tool tools.Tool) (string, error) {
 	return filepath.Join(base, tool.HomeDir+"-"+p), nil
 }
 
+// sshAgentSock returns the host SSH agent socket to mount, or "" when the
+// passthrough is off (Windows, env var unset, or file missing).
+func sshAgentSock() string {
+	if runtime.GOOS == "windows" {
+		return ""
+	}
+	v := os.Getenv("SSH_AUTH_SOCK")
+	if v == "" {
+		return ""
+	}
+	if _, err := os.Stat(v); err != nil {
+		return ""
+	}
+	return v
+}
+
 // assemble builds the full engine argument list. Pure so the golden test can
-// pin the exact flags per platform.
-func assemble(tool tools.Tool, goos, hostDir, workDir, homeDir, stateDir, containerName, entrypoint string, args []string) ([]string, error) {
+// pin the exact flags per platform. sshAgent is the host socket to mount at
+// /var/run/ssh-agent, "" for none.
+func assemble(tool tools.Tool, goos, hostDir, workDir, homeDir, stateDir, sshAgent, containerName, entrypoint string, args []string) ([]string, error) {
+	if goos == "windows" { // no unix sockets; sshAgent stays empty in practice too
+		sshAgent = ""
+	}
 	out := []string{"run", "--rm", "-it"}
 
 	// Apple `container` runs each container in its own VM; quiet its
@@ -142,6 +162,9 @@ func assemble(tool tools.Tool, goos, hostDir, workDir, homeDir, stateDir, contai
 		// opencode's per-run state dir; the launcher saves it back on exit.
 		mounts = append(mounts, [2]string{stateDir, "/root/.local/state/opencode"})
 	}
+	if sshAgent != "" {
+		mounts = append(mounts, [2]string{sshAgent, "/var/run/ssh-agent"})
+	}
 	for _, m := range mounts {
 		mount, err := mountFlag(goos, m[0], m[1])
 		if err != nil {
@@ -154,6 +177,11 @@ func assemble(tool tools.Tool, goos, hostDir, workDir, homeDir, stateDir, contai
 	// The engine forwards the host's own value for a bare -e KEY and skips
 	// unset ones, so secret values never appear in the command line.
 	out = append(out, envArgs(goos, tool)...)
+	if sshAgent != "" {
+		// Explicit value: a bare -e would forward the host socket path,
+		// which does not exist in the container.
+		out = append(out, "-e", "SSH_AUTH_SOCK=/var/run/ssh-agent")
+	}
 
 	// Linux hardening (Podman): keep just the capabilities needed for file
 	// handling and apt-get.
