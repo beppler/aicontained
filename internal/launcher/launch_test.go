@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"testing"
 
@@ -15,14 +16,14 @@ func TestAssemble(t *testing.T) {
 	host, work, home := "/home/u/proj", "/workspace/HASH/proj", "/home/u/.aicontained"
 	cases := []struct {
 		name     string
-		tool      string
-		goos      string
-		ctrName   string
-		stateDir  string
-		sshAgent  string
-		homeSub   string
-		entry     string
-		want      []string
+		tool     string
+		goos     string
+		ctrName  string
+		stateDir string
+		sshAgent string
+		homeSub  string
+		entry    string
+		want     []string
 	}{
 		{
 			name: "claude/darwin", tool: "claude", goos: "darwin", ctrName: "claude_cli_42", homeSub: "claude-home",
@@ -310,8 +311,12 @@ func TestSSHAgentSock(t *testing.T) {
 	}
 	defer ln.Close()
 	t.Setenv("SSH_AUTH_SOCK", sock)
-	if got := sshAgentSock(); got != sock {
-		t.Errorf("live socket: got %q, want %q", got, sock)
+	want := sock
+	if runtime.GOOS == "windows" { // passthrough is off on Windows even with a live socket
+		want = ""
+	}
+	if got := sshAgentSock(); got != want {
+		t.Errorf("live socket: got %q, want %q", got, want)
 	}
 
 	missing := filepath.Join(dir, "missing.sock")
