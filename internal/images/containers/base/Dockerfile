@@ -3,7 +3,7 @@ FROM docker.io/library/debian:trixie-slim
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get update \
     && apt-get upgrade -y \
-    && apt-get install -y --no-install-recommends bubblewrap ca-certificates curl git tree libatomic1 openssh-client vim \
+    && apt-get install -y --no-install-recommends bubblewrap ca-certificates curl tree libatomic1 openssh-client vim \
     && curl -fsSL https://mise.run | MISE_INSTALL_PATH=/usr/local/bin/mise MISE_INSTALL_HELP=0 sh \
     && rm -rf /var/lib/apt/lists/*
 
@@ -14,7 +14,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 # system shims dir is on PATH so tools resolve without shell activation.
 RUN mkdir -p /etc/mise \
     && export MISE_DATA_DIR=/usr/local/share/mise MISE_GLOBAL_CONFIG_FILE=/etc/mise/config.toml \
-    && mise use -g gh@latest go@latest jq@latest node@lts python@latest ripgrep@latest uv@latest \
+    && mise use -g conda:git@latest conda:git-lfs@latest gh@latest go@latest jq@latest node@lts python@latest ripgrep@latest uv@latest \
     && mise cache clear \
     && chmod -R a+rX /usr/local/share/mise /etc/mise
 
