@@ -1,6 +1,7 @@
-// Package buildcmd implements the `aicontained build` subcommand: build the
-// container images, then install the binary with per-tool links.
-package buildcmd
+// Package install implements the `aicontained install` subcommand: copy the
+// running binary to the user's private bin dir and create one link per tool,
+// so argv[0] dispatch picks the right tool.
+package install
 
 import (
 	"errors"
@@ -8,90 +9,15 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 
-	"github.com/beppler/aicontained/internal/engine"
-	"github.com/beppler/aicontained/internal/images"
 	"github.com/beppler/aicontained/internal/tools"
 )
 
-// Build runs `aicontained build [tool...] [--prune-images] [--no-cache]` and
-// returns the process exit code. It only builds images; use Install to put
-// the binary and per-tool links on disk.
-func Build(args []string) int {
-	pruneImages, noCache := false, false
-	var names []string
-	for _, a := range args {
-		switch a {
-		case "--prune-images":
-			pruneImages = true
-		case "--no-cache":
-			noCache = true
-		case "-h", "--help":
-			fmt.Println("usage: aicontained build [tool...] [--prune-images] [--no-cache]")
-			return 0
-		default:
-			names = append(names, a)
-		}
-	}
-	list, code := resolveTools(names)
-	if code != 0 {
-		return code
-	}
-
-	eng, err := engine.Detect()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-
-	if runtime.GOOS == "darwin" {
-		eng.Run("system", "start") // nudge a stopped daemon, like the legacy script
-		if err := ensureRosetta(); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
-		}
-	}
-	root, err := writeContainers()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "aicontained: extracting image definitions:", err)
-		return 1
-	}
-	defer os.RemoveAll(root)
-
-	for _, image := range buildList(list) {
-		dir := filepath.Join(root, "containers", image.dir)
-		buildArgs := []string{"build"}
-		if noCache {
-			buildArgs = append(buildArgs, "--no-cache")
-		}
-		buildArgs = append(buildArgs, "-t", image.tag, dir)
-		if code, err := eng.Run(buildArgs...); err != nil || code != 0 {
-			fmt.Fprintf(os.Stderr, "aicontained: building %s failed\n", image.tag)
-			return exitCode(code, err)
-		}
-	}
-
-	if pruneImages {
-		pruneArgs := []string{"image", "prune"}
-		if runtime.GOOS == "windows" { // wslc prompts without it
-			pruneArgs = append(pruneArgs, "-f")
-		}
-		if code, err := eng.Run(pruneArgs...); err != nil || code != 0 {
-			return exitCode(code, err)
-		}
-	}
-
-	fmt.Printf("Built images (%s) for: %s\n", eng.Name, toolNames(list))
-	return 0
-}
-
 // Install runs `aicontained install [tool...]` and returns the process exit
-// code. It copies the running binary to the user's private bin dir and
-// creates one link per tool, so argv[0] dispatch picks the right tool.
+// code.
 func Install(args []string) int {
 	var names []string
 	for _, a := range args {
@@ -103,92 +29,18 @@ func Install(args []string) int {
 			names = append(names, a)
 		}
 	}
-	list, code := resolveTools(names)
-	if code != 0 {
-		return code
+	list, err := tools.Resolve(names)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
 	}
 	dest, err := install(list)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "aicontained: install:", err)
 		return 1
 	}
-	fmt.Printf("Done. Make sure %s is on your PATH, then just run: %s\n", dest, toolNames(list))
+	fmt.Printf("Done. Make sure %s is on your PATH, then just run: %s\n", dest, tools.Names(list))
 	return 0
-}
-
-// resolveTools maps user-supplied names to tools; no names means all tools.
-// Returns a nonzero exit code on the first unknown name.
-func resolveTools(names []string) ([]tools.Tool, int) {
-	if len(names) == 0 {
-		return tools.All(), 0
-	}
-	var list []tools.Tool
-	for _, n := range names {
-		t, ok := tools.Lookup(n)
-		if !ok {
-			fmt.Fprintf(os.Stderr, "Unknown tool: %s (available: %s)\n", n, toolNames(tools.All()))
-			return nil, 1
-		}
-		list = append(list, t)
-	}
-	return list, 0
-}
-
-type imageSpec struct{ tag, dir string }
-
-func buildList(list []tools.Tool) []imageSpec {
-	out := []imageSpec{{"aicontained-base", "base"}}
-	for _, t := range list {
-		out = append(out, imageSpec{t.Image(), t.Name})
-	}
-	return out
-}
-
-func exitCode(code int, err error) int {
-	if err != nil {
-		return 1
-	}
-	return code
-}
-
-// ensureRosetta ports the legacy check: `container build` runs its BuildKit
-// builder under Rosetta regardless of target architecture, and fails with
-// "Rosetta is not installed" if it's missing.
-func ensureRosetta() error {
-	if err := exec.Command("pkgutil", "--pkg-info", "com.apple.pkg.RosettaUpdateAuto").Run(); err == nil {
-		return nil
-	}
-	fmt.Fprintln(os.Stderr, "Installing Rosetta 2 (required by container's build tool)...")
-	cmd := exec.Command("softwareupdate", "--install-rosetta", "--agree-to-license")
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	return cmd.Run()
-}
-
-// writeContainers extracts the embedded image definitions to a temp dir.
-func writeContainers() (string, error) {
-	root, err := os.MkdirTemp("", "aicontained-containers-")
-	if err != nil {
-		return "", err
-	}
-	err = fs.WalkDir(images.Containers, "containers", func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		target := filepath.Join(root, p)
-		if d.IsDir() {
-			return os.MkdirAll(target, 0o755)
-		}
-		data, err := images.Containers.ReadFile(p)
-		if err != nil {
-			return err
-		}
-		return os.WriteFile(target, data, 0o644)
-	})
-	if err != nil {
-		os.RemoveAll(root)
-		return "", err
-	}
-	return root, nil
 }
 
 // install copies the running binary to the user's private bin dir and creates
@@ -366,12 +218,4 @@ func copyExecutable(src, dst string) error {
 		os.Remove(old) // busy while a session still runs it; swept next install
 	}
 	return nil
-}
-
-func toolNames(list []tools.Tool) string {
-	names := make([]string, len(list))
-	for i, t := range list {
-		names[i] = t.Name
-	}
-	return strings.Join(names, " ")
 }

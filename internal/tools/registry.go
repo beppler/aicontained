@@ -2,6 +2,11 @@
 // directories to mount, and which environment keys to pass through.
 package tools
 
+import (
+	"fmt"
+	"strings"
+)
+
 // Tool describes one containerized CLI.
 type Tool struct {
 	Name       string   // command name; image is aicontained-<name>
@@ -42,3 +47,29 @@ func Lookup(name string) (Tool, bool) {
 
 // Image is the container image name for the tool.
 func (t Tool) Image() string { return "aicontained-" + t.Name }
+
+// Resolve maps user-supplied names to tools; no names means all tools.
+// Unknown names produce an error listing the available ones.
+func Resolve(names []string) ([]Tool, error) {
+	if len(names) == 0 {
+		return All(), nil
+	}
+	var list []Tool
+	for _, n := range names {
+		t, ok := Lookup(n)
+		if !ok {
+			return nil, fmt.Errorf("Unknown tool: %s (available: %s)", n, Names(All()))
+		}
+		list = append(list, t)
+	}
+	return list, nil
+}
+
+// Names joins the tool names with spaces, for usage and error messages.
+func Names(list []Tool) string {
+	out := make([]string, len(list))
+	for i, t := range list {
+		out[i] = t.Name
+	}
+	return strings.Join(out, " ")
+}

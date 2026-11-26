@@ -8,7 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/beppler/aicontained/internal/buildcmd"
+	"github.com/beppler/aicontained/internal/build"
+	"github.com/beppler/aicontained/internal/install"
 	"github.com/beppler/aicontained/internal/launcher"
 	"github.com/beppler/aicontained/internal/tools"
 )
@@ -25,12 +26,12 @@ func main() {
 	}
 	switch args[0] {
 	case "build":
-		os.Exit(buildcmd.Build(args[1:]))
+		os.Exit(build.Build(args[1:]))
 	case "install":
-		os.Exit(buildcmd.Install(args[1:]))
+		os.Exit(install.Install(args[1:]))
 	case "shell":
 		if len(args) < 2 {
-			fmt.Fprintf(os.Stderr, "Usage: aicontained shell <tool> [bash args...] (available: %s)\n", strings.Join(names(), " "))
+			fmt.Fprintf(os.Stderr, "Usage: aicontained shell <tool> [bash args...] (available: %s)\n", tools.Names(tools.All()))
 			os.Exit(1)
 		}
 		launch(lookup(args[1]), args[2:], launcher.Shell)
@@ -74,19 +75,10 @@ func launch(tool tools.Tool, args []string, fn func(tools.Tool, []string) (int, 
 func lookup(name string) tools.Tool {
 	tool, ok := tools.Lookup(name)
 	if !ok {
-		fmt.Fprintf(os.Stderr, "Unknown tool: %s (available: %s)\n", name, strings.Join(names(), " "))
+		fmt.Fprintf(os.Stderr, "Unknown tool: %s (available: %s)\n", name, tools.Names(tools.All()))
 		os.Exit(1)
 	}
 	return tool
-}
-
-func names() []string {
-	all := tools.All()
-	out := make([]string, len(all))
-	for i, t := range all {
-		out[i] = t.Name
-	}
-	return out
 }
 
 func usage() {
