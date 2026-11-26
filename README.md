@@ -68,6 +68,8 @@ On a fresh machine run `install` once, then `build`. `install` puts the binary i
 
 ### Platform notes
 
+**SSH agent (Linux/macOS):** if `SSH_AUTH_SOCK` is set and the socket exists on the host, it is mounted at `/var/run/ssh-agent` in the container with `SSH_AUTH_SOCK` pointing to it, so `git` pushes and `ssh` inside the container use your host agent. Windows is not supported yet.
+
 **Linux:**
 
 Podman is required and networking needs `slirp4netns`:
