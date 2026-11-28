@@ -1,6 +1,11 @@
 package workdir
 
-import "testing"
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+)
 
 func TestContainerPath(t *testing.T) {
 	cases := []struct {
@@ -20,5 +25,30 @@ func TestContainerPath(t *testing.T) {
 	a, b := ContainerPath("/home/user/proj"), ContainerPath("/home/user/other")
 	if a == b {
 		t.Errorf("distinct paths hashed equal: %q", a)
+	}
+}
+
+func TestGitRoot(t *testing.T) {
+	// Git reports the symlink-resolved root (macOS: /var → /private/var),
+	// so compare against the resolved path.
+	repo, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("git", "-C", repo, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v: %s", err, out)
+	}
+	sub := filepath.Join(repo, "a", "b")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := GitRoot(sub); got != repo {
+		t.Errorf("GitRoot(%q) = %q, want %q", sub, got, repo)
+	}
+	if got := GitRoot(repo); got != repo {
+		t.Errorf("GitRoot(root) = %q, want %q", got, repo)
+	}
+	if got := GitRoot(filepath.Dir(repo)); got != "" {
+		t.Errorf("GitRoot(outside repo) = %q, want \"\"", got)
 	}
 }

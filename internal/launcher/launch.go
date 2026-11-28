@@ -45,6 +45,7 @@ func run(tool tools.Tool, entrypoint string, args []string) (int, error) {
 	if err != nil {
 		return 1, fmt.Errorf("cannot read current directory: %w", err)
 	}
+	mount, cwd := paths(host)
 	home, err := homeDir(filepath.Join(userHome, ".aicontained"), tool)
 	if err != nil {
 		return 1, err
@@ -79,11 +80,29 @@ func run(tool tools.Tool, entrypoint string, args []string) (int, error) {
 		}()
 		stateDir = run.Dir()
 	}
-	cmdArgs, err := assemble(tool, runtime.GOOS, host, workdir.ContainerPath(host), home, stateDir, sshAgentSock(), name, entrypoint, args)
+	cmdArgs, err := assemble(tool, runtime.GOOS, mount, cwd, home, stateDir, sshAgentSock(), name, entrypoint, args)
 	if err != nil {
 		return 1, err
 	}
 	return runChild(eng.Name, cmdArgs)
+}
+
+// paths maps the host cwd to its mount point and the in-container work dir.
+// Inside a git repo the repo root is mounted (per-project state is shared
+// across the repo) and the tool opens in the caller's subdirectory.
+func paths(host string) (mount, cwd string) {
+	root := workdir.GitRoot(host)
+	if root == "" {
+		return host, workdir.ContainerPath(host)
+	}
+	cwd = workdir.ContainerPath(root)
+	// Open the tool where the user is; fall back to the root if the resolved
+	// cwd escapes the root (host symlink resolved outside it).
+	if rel, err := filepath.Rel(root, host); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
+		// Join re-introduces OS separators; container paths are always slash-separated.
+		cwd = filepath.ToSlash(filepath.Join(cwd, rel))
+	}
+	return root, cwd
 }
 
 var profileRe = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)

@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -22,6 +23,21 @@ func HostPath() (string, error) {
 		dir = resolved
 	}
 	return dir, nil
+}
+
+// GitRoot returns the git work-tree root containing dir, or "" when dir is
+// not inside a repo (or git is unavailable/misbehaves).
+func GitRoot(dir string) string {
+	out, err := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel").Output()
+	if err != nil {
+		return ""
+	}
+	root := strings.TrimSpace(string(out))
+	if root == "" || !filepath.IsAbs(root) {
+		return ""
+	}
+	// Git prints forward slashes even on Windows; use native separators.
+	return filepath.FromSlash(root)
 }
 
 // ContainerPath returns the in-container mount point for hostDir:
