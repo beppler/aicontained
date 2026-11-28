@@ -99,7 +99,8 @@ func paths(host string) (mount, cwd string) {
 	// Open the tool where the user is; fall back to the root if the resolved
 	// cwd escapes the root (host symlink resolved outside it).
 	if rel, err := filepath.Rel(root, host); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
-		cwd = filepath.Join(cwd, filepath.ToSlash(rel))
+		// Join re-introduces OS separators; container paths are always slash-separated.
+		cwd = filepath.ToSlash(filepath.Join(cwd, rel))
 	}
 	return root, cwd
 }
