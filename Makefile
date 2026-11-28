@@ -5,10 +5,11 @@
 # Requires GNU make. Recipes avoid shell-specific syntax so this works the
 # same from sh (Linux/macOS/Git Bash) and cmd.exe on Windows.
 #
-#   make                               # build every platform
-#   make dist/aicontained-linux-amd64  # build a single platform
+#   make                               # build every platform + dist/checksums.txt
+#   make dist/aicontained-linux-amd64  # build a single platform (checksums.txt is not updated)
 #   make clean                         # remove dist/
 #   make install                       # install binary + tool links on this machine
+#   make images                        # rebuild all images from scratch, prune dangling ones
 
 BIN       := aicontained
 PKG       := ./cmd/aicontained
@@ -30,9 +31,10 @@ $(foreach p,$(PLATFORMS),$(eval $(call platform-rule,$(word 1,$(subst /, ,$(p)))
 
 # Always invoke go build; Go's build cache makes no-op rebuilds cheap and
 # tracks source dependencies better than make could.
-.PHONY: cross-build $(TARGETS) clean install
+.PHONY: cross-build $(TARGETS) clean install images
 
 cross-build: $(TARGETS)
+	go run ./scripts/sha256sums.go $(TARGETS) > $(DIST)/checksums.txt
 
 # go build -o creates $(DIST) itself, so no mkdir is needed.
 $(TARGETS):
@@ -47,3 +49,6 @@ endif
 
 install:
 	go run ./cmd/aicontained install
+
+images:
+	go run ./cmd/aicontained build --no-cache --prune-images
