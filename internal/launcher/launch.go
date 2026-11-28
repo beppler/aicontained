@@ -45,7 +45,10 @@ func run(tool tools.Tool, entrypoint string, args []string) (int, error) {
 	if err != nil {
 		return 1, fmt.Errorf("cannot read current directory: %w", err)
 	}
-	mount, cwd := paths(host)
+	mount, mountDst, cwd, err := paths(host)
+	if err != nil {
+		return 1, err
+	}
 	home, err := homeDir(filepath.Join(userHome, ".aicontained"), tool)
 	if err != nil {
 		return 1, err
@@ -80,7 +83,7 @@ func run(tool tools.Tool, entrypoint string, args []string) (int, error) {
 		}()
 		stateDir = run.Dir()
 	}
-	cmdArgs, err := assemble(tool, runtime.GOOS, mount, cwd, home, stateDir, sshAgentSock(), name, entrypoint, args)
+	cmdArgs, err := assemble(tool, runtime.GOOS, mount, mountDst, cwd, home, stateDir, sshAgentSock(), name, entrypoint, args)
 	if err != nil {
 		return 1, err
 	}
@@ -90,19 +93,27 @@ func run(tool tools.Tool, entrypoint string, args []string) (int, error) {
 // paths maps the host cwd to its mount point and the in-container work dir.
 // Inside a git repo the repo root is mounted (per-project state is shared
 // across the repo) and the tool opens in the caller's subdirectory.
-func paths(host string) (mount, cwd string) {
+// A cwd that does not sit under the repo root (a symlinked path into the
+// repo) is refused: its true position inside the container layout is unknown.
+func paths(host string) (mountHost, mountDst, cwd string, err error) {
 	root := workdir.GitRoot(host)
 	if root == "" {
-		return host, workdir.ContainerPath(host)
+		return host, workdir.ContainerPath(host), workdir.ContainerPath(host), nil
 	}
-	cwd = workdir.ContainerPath(root)
-	// Open the tool where the user is; fall back to the root if the resolved
-	// cwd escapes the root (host symlink resolved outside it).
-	if rel, err := filepath.Rel(root, host); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
+	rootDir := workdir.ContainerPath(root)
+	cwd = rootDir
+	rel, err := filepath.Rel(root, host)
+	if err != nil {
+		return "", "", "", fmt.Errorf("resolving %s against repository root %s: %w", host, root, err)
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", "", "", fmt.Errorf("%s resolves outside repository root %s", host, root)
+	}
+	if rel != "." {
 		// Join re-introduces OS separators; container paths are always slash-separated.
-		cwd = filepath.ToSlash(filepath.Join(cwd, rel))
+		cwd = filepath.ToSlash(filepath.Join(rootDir, rel))
 	}
-	return root, cwd
+	return root, rootDir, cwd, nil
 }
 
 var profileRe = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
@@ -164,7 +175,7 @@ func sshAgentSock() string {
 // assemble builds the full engine argument list. Pure so the golden test can
 // pin the exact flags per platform. sshAgent is the host socket to mount at
 // /var/run/ssh-agent, "" for none.
-func assemble(tool tools.Tool, goos, hostDir, workDir, homeDir, stateDir, sshAgent, containerName, entrypoint string, args []string) ([]string, error) {
+func assemble(tool tools.Tool, goos, hostDir, mountDst, workDir, homeDir, stateDir, sshAgent, containerName, entrypoint string, args []string) ([]string, error) {
 	if goos == "windows" { // no unix sockets; sshAgent stays empty in practice too
 		sshAgent = ""
 	}
@@ -176,7 +187,7 @@ func assemble(tool tools.Tool, goos, hostDir, workDir, homeDir, stateDir, sshAge
 		out = append(out, "--progress", "none")
 	}
 
-	mounts := [][2]string{{hostDir, workDir}, {homeDir, "/root"}}
+	mounts := [][2]string{{hostDir, mountDst}, {homeDir, "/root"}}
 	if stateDir != "" {
 		// opencode's per-run state dir; the launcher saves it back on exit.
 		mounts = append(mounts, [2]string{stateDir, "/root/.local/state/opencode"})
