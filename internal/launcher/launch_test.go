@@ -3,12 +3,15 @@ package launcher
 import (
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/beppler/aicontained/internal/tools"
+	"github.com/beppler/aicontained/internal/workdir"
 )
 
 // Golden test pinning the exact engine flags per platform.
@@ -207,6 +210,64 @@ func TestAssemble(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// paths mounts the repo root inside a git repo and opens the tool in the
+// caller's subdirectory; outside a repo it maps the directory itself.
+func TestPaths(t *testing.T) {
+	// Git reports the symlink-resolved root (macOS: /var → /private/var),
+	// so compare against the resolved path.
+	repo, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("git", "-C", repo, "init", "-q")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v: %s", err, out)
+	}
+	sub := filepath.Join(repo, "cmd", "foo")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Repo root is the mount; the tool opens in the subdir.
+	mount, cwd := paths(sub)
+	if mount != repo {
+		t.Errorf("paths(sub) mount = %q, want %q", mount, repo)
+	}
+	wantSub := filepath.ToSlash(filepath.Join(workdir.ContainerPath(repo), "cmd", "foo"))
+	if cwd != wantSub {
+		t.Errorf("paths(sub) cwd = %q, want %q", cwd, wantSub)
+	}
+
+	// Repo root itself: cwd stays at the mount point.
+	mount, cwd = paths(repo)
+	if mount != repo || cwd != workdir.ContainerPath(repo) {
+		t.Errorf("paths(repo) = %q, %q, want %q, %q", mount, cwd, repo, workdir.ContainerPath(repo))
+	}
+
+	// Outside a repo: today's behavior.
+	plain := t.TempDir()
+	mount, cwd = paths(plain)
+	if mount != plain || cwd != workdir.ContainerPath(plain) {
+		t.Errorf("paths(plain) = %q, %q, want %q, %q", mount, cwd, plain, workdir.ContainerPath(plain))
+	}
+
+	// A symlink resolving outside any repo maps to the resolved directory
+	// itself, not the repo.
+	other := t.TempDir()
+	link := filepath.Join(repo, "outside")
+	if err := os.Symlink(other, link); err != nil && !strings.Contains(err.Error(), "not supported") {
+		t.Fatal(err)
+	}
+	resolved, err := filepath.EvalSymlinks(link)
+	if err != nil {
+		t.Skip("symlinks unsupported")
+	}
+	mount, cwd = paths(resolved)
+	if mount != resolved || cwd != workdir.ContainerPath(resolved) {
+		t.Errorf("paths(resolved outside) = %q, %q, want %q, %q", mount, cwd, resolved, workdir.ContainerPath(resolved))
 	}
 }
 

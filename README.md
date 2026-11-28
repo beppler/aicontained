@@ -116,7 +116,7 @@ aicontained shell claude            # interactive bash in the claude container
 aicontained shell codex -c 'ls ~'   # run a one-off command
 ```
 
-**How mounting works:** the current directory is bind-mounted at `/workspace/<hash-of-host-path>/<folder-name>`. The hash is deliberate - these tools key per-project state (sessions, memory, folder trust) by path, so every project must map to a unique in-container path. Side effect: renaming or moving a project on the host gives it a fresh hash and a fresh session history.
+**How mounting works:** the current directory is bind-mounted at `/workspace/<hash-of-host-path>/<folder-name>`. Inside a git repository, the repository root is mounted instead and the tool opens in your subdirectory, so state is shared across the whole repo. The hash is deliberate - these tools key per-project state (sessions, memory, folder trust) by path, so every project must map to a unique in-container path. Side effect: renaming or moving a project on the host gives it a fresh hash and a fresh session history. The same happens once when you start launching from a different directory within the same repo.
 
 **Auth persistence:** each tool keeps its credentials in a dedicated host folder per tool under `~/.aicontained/` (macOS/Linux) or `%USERPROFILE%\.aicontained\` (Windows), bind-mounted as `/root` in the container - log in once, stay logged in.
 
