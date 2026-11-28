@@ -196,7 +196,7 @@ func TestAssemble(t *testing.T) {
 			if !ok {
 				t.Fatalf("unknown tool %q", c.tool)
 			}
-			got, err := assemble(tool, c.goos, host, work, home+"/"+c.homeSub, c.stateDir, c.sshAgent, c.ctrName, c.entry, []string{"--version"})
+			got, err := assemble(tool, c.goos, host, work, work, home+"/"+c.homeSub, c.stateDir, c.sshAgent, c.ctrName, c.entry, []string{"--version"})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -232,9 +232,15 @@ func TestPaths(t *testing.T) {
 	}
 
 	// Repo root is the mount; the tool opens in the subdir.
-	mount, cwd := paths(sub)
+	mount, mountDst, cwd, err := paths(sub)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if mount != repo {
 		t.Errorf("paths(sub) mount = %q, want %q", mount, repo)
+	}
+	if mountDst != workdir.ContainerPath(repo) {
+		t.Errorf("paths(sub) mountDst = %q, want %q", mountDst, workdir.ContainerPath(repo))
 	}
 	wantSub := filepath.ToSlash(filepath.Join(workdir.ContainerPath(repo), "cmd", "foo"))
 	if cwd != wantSub {
@@ -242,16 +248,35 @@ func TestPaths(t *testing.T) {
 	}
 
 	// Repo root itself: cwd stays at the mount point.
-	mount, cwd = paths(repo)
-	if mount != repo || cwd != workdir.ContainerPath(repo) {
-		t.Errorf("paths(repo) = %q, %q, want %q, %q", mount, cwd, repo, workdir.ContainerPath(repo))
+	mount, mountDst, cwd, err = paths(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mount != repo || mountDst != workdir.ContainerPath(repo) || cwd != workdir.ContainerPath(repo) {
+		t.Errorf("paths(repo) = %q, %q, %q, want %q, %q, %q", mount, mountDst, cwd, repo, workdir.ContainerPath(repo), workdir.ContainerPath(repo))
+	}
+
+	// A subdirectory whose name starts with ".." is still inside the repo.
+	dotdot := filepath.Join(repo, "..foo")
+	if err := os.MkdirAll(dotdot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mount, mountDst, cwd, err = paths(dotdot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mount != repo || mountDst != workdir.ContainerPath(repo) || cwd != filepath.ToSlash(filepath.Join(workdir.ContainerPath(repo), "..foo")) {
+		t.Errorf("paths(..foo) = %q, %q, %q", mount, mountDst, cwd)
 	}
 
 	// Outside a repo: today's behavior.
 	plain := t.TempDir()
-	mount, cwd = paths(plain)
-	if mount != plain || cwd != workdir.ContainerPath(plain) {
-		t.Errorf("paths(plain) = %q, %q, want %q, %q", mount, cwd, plain, workdir.ContainerPath(plain))
+	mount, mountDst, cwd, err = paths(plain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mount != plain || mountDst != workdir.ContainerPath(plain) || cwd != workdir.ContainerPath(plain) {
+		t.Errorf("paths(plain) = %q, %q, %q, want %q, %q, %q", mount, mountDst, cwd, plain, workdir.ContainerPath(plain), workdir.ContainerPath(plain))
 	}
 
 	// A symlink resolving outside any repo maps to the resolved directory
@@ -265,9 +290,26 @@ func TestPaths(t *testing.T) {
 	if err != nil {
 		t.Skip("symlinks unsupported")
 	}
-	mount, cwd = paths(resolved)
-	if mount != resolved || cwd != workdir.ContainerPath(resolved) {
-		t.Errorf("paths(resolved outside) = %q, %q, want %q, %q", mount, cwd, resolved, workdir.ContainerPath(resolved))
+	mount, mountDst, cwd, err = paths(resolved)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mount != resolved || mountDst != workdir.ContainerPath(resolved) || cwd != workdir.ContainerPath(resolved) {
+		t.Errorf("paths(resolved outside) = %q, %q, %q, want %q, %q, %q", mount, mountDst, cwd, resolved, workdir.ContainerPath(resolved), workdir.ContainerPath(resolved))
+	}
+
+	// A symlinked path into the repo: git resolves the root to the real path,
+	// the host cwd no longer sits under it — refuse instead of guessing.
+	intoLink := filepath.Join(t.TempDir(), "repo-link")
+	if err := os.Symlink(repo, intoLink); err != nil && !strings.Contains(err.Error(), "not supported") {
+		t.Fatal(err)
+	}
+	linkSub := filepath.Join(intoLink, "cmd", "foo")
+	if _, err := os.Stat(linkSub); err != nil {
+		t.Skip("symlinks unsupported")
+	}
+	if _, _, _, err := paths(linkSub); err == nil {
+		t.Errorf("paths(%q linked into repo) = nil error, want escape error", linkSub)
 	}
 }
 
@@ -282,7 +324,7 @@ func TestAssembleMountFallback(t *testing.T) {
 	const work = "/workspace/HASH/proj"
 
 	// Linux: --mount replaces -v.
-	got, err := assemble(tool, "linux", "/home/u/proj:v2", work, "/home/u/.aicontained/claude-home", "", "", "", "", []string{"--version"})
+	got, err := assemble(tool, "linux", "/home/u/proj:v2", work, work, "/home/u/.aicontained/claude-home", "", "", "", "", []string{"--version"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +336,7 @@ func TestAssembleMountFallback(t *testing.T) {
 	}
 
 	// Windows keeps -v even with a colon (wslc handles drive letters).
-	got, err = assemble(tool, "windows", "/home/u/proj:v2", work, "/home/u/.aicontained/claude-home", "", "", "", "", nil)
+	got, err = assemble(tool, "windows", "/home/u/proj:v2", work, work, "/home/u/.aicontained/claude-home", "", "", "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,7 +346,7 @@ func TestAssembleMountFallback(t *testing.T) {
 
 	// Colon + comma: not mountable on any non-Windows engine; must error
 	// clearly instead of failing inside podman.
-	_, err = assemble(tool, "linux", "/home/u/proj:v2,final", work, "/home/u/.aicontained/claude-home", "", "", "", "", nil)
+	_, err = assemble(tool, "linux", "/home/u/proj:v2,final", work, work, "/home/u/.aicontained/claude-home", "", "", "", "", nil)
 	if err == nil {
 		t.Fatal("want an error for a path containing both ':' and ','")
 	}
@@ -320,7 +362,7 @@ func TestAssembleSSHAgent(t *testing.T) {
 	const work = "/workspace/HASH/proj"
 
 	// Linux: socket mount plus the container-side env value.
-	got, err := assemble(tool, "linux", "/home/u/proj", work, "/home/u/.aicontained/claude-home", "", agentSock, "", "", nil)
+	got, err := assemble(tool, "linux", "/home/u/proj", work, work, "/home/u/.aicontained/claude-home", "", agentSock, "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -335,7 +377,7 @@ func TestAssembleSSHAgent(t *testing.T) {
 	}
 
 	// macOS: same.
-	got, err = assemble(tool, "darwin", "/home/u/proj", work, "/home/u/.aicontained/claude-home", "", agentSock, "", "", nil)
+	got, err = assemble(tool, "darwin", "/home/u/proj", work, work, "/home/u/.aicontained/claude-home", "", agentSock, "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -346,7 +388,7 @@ func TestAssembleSSHAgent(t *testing.T) {
 	}
 
 	// Windows: never mounted, never set.
-	got, err = assemble(tool, "windows", "/home/u/proj", work, "/home/u/.aicontained/claude-home", "", agentSock, "", "", nil)
+	got, err = assemble(tool, "windows", "/home/u/proj", work, work, "/home/u/.aicontained/claude-home", "", agentSock, "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
